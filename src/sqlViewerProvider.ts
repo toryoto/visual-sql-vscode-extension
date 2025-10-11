@@ -5,6 +5,7 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	public static readonly viewType = 'easy-sql-viewer';
 	private _view?: vscode.WebviewView;
 	private _sqlParser: SQLParser;
+	private _currentDocument?: vscode.TextDocument;
 
 	constructor(private readonly _extensionUri: vscode.Uri) {
 		this._sqlParser = new SQLParser();
@@ -33,20 +34,52 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 					case 'updateSQL':
 						this._updateSQLFile(message.sql);
 						return;
-					case 'getCurrentSQL':
-						this._sendCurrentSQL();
+					case 'ready':
+						console.log('Webview ready message received');
+						if (this._currentDocument) {
+							this.updateWebview(this._currentDocument);
+						} else {
+							const activeEditor = vscode.window.activeTextEditor;
+							if (activeEditor && activeEditor.document.languageId === 'sql') {
+								this.updateWebview(activeEditor.document);
+							}
+						}
+						return;
+					case 'cellEdit':
+						this._handleCellEdit(message.statementIndex, message.rowIndex, message.columnIndex, message.value);
+						return;
+					case 'addRow':
+						this._handleAddRow(message.statementIndex);
+						return;
+					case 'deleteRow':
+						this._handleDeleteRow(message.statementIndex, message.rowIndex);
 						return;
 				}
 			},
 			undefined,
 			[]
 		);
+
+		// Webviewが表示されたときに現在のドキュメントを送信
+		webviewView.onDidChangeVisibility(() => {
+			if (webviewView.visible) {
+				console.log('Webview became visible');
+				const activeEditor = vscode.window.activeTextEditor;
+				if (activeEditor && activeEditor.document.languageId === 'sql') {
+					this.updateWebview(activeEditor.document);
+				}
+			}
+		});
 	}
 
 	public updateWebview(document: vscode.TextDocument) {
+		this._currentDocument = document;
+		
 		if (this._view) {
 			const sqlContent = document.getText();
 			const parsedData = this._sqlParser.parseSQL(sqlContent);
+			
+			console.log('Sending data to webview:', parsedData);
 			
 			this._view.webview.postMessage({
 				type: 'updateData',
@@ -54,6 +87,111 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 				fileName: document.fileName
 			});
 		}
+	}
+
+	private _handleCellEdit(statementIndex: number, rowIndex: number, columnIndex: number, value: any) {
+		if (!this._currentDocument) return;
+
+		const sqlContent = this._currentDocument.getText();
+		const parsedData = this._sqlParser.parseSQL(sqlContent);
+		
+		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+
+		const statement = parsedData.statements[statementIndex];
+
+		if (statement.type === 'insert' && statement.values) {
+			if (statement.values[rowIndex]) {
+				statement.values[rowIndex][columnIndex] = value;
+			}
+		} else if (statement.type === 'update' && statement.data) {
+			if (statement.data[rowIndex]) {
+				statement.data[rowIndex][columnIndex] = value;
+			}
+		}
+
+		const newSQL = this._generateSQLFromData(parsedData);
+		this._updateSQLFile(newSQL);
+	}
+
+	private _handleAddRow(statementIndex: number) {
+		if (!this._currentDocument) return;
+
+		const sqlContent = this._currentDocument.getText();
+		const parsedData = this._sqlParser.parseSQL(sqlContent);
+		
+		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+
+		const statement = parsedData.statements[statementIndex];
+
+		if (statement.type === 'insert' && statement.columns) {
+			const newRow = new Array(statement.columns.length).fill('');
+			if (!statement.values) {
+				statement.values = [];
+			}
+			statement.values.push(newRow);
+		} else if (statement.type === 'update' && statement.columns) {
+			const newRow = [statement.columns[0] || '', ''];
+			if (!statement.data) {
+				statement.data = [];
+			}
+			statement.data.push(newRow);
+		}
+
+		const newSQL = this._generateSQLFromData(parsedData);
+		this._updateSQLFile(newSQL);
+	}
+
+	private _handleDeleteRow(statementIndex: number, rowIndex: number) {
+		if (!this._currentDocument) return;
+
+		const sqlContent = this._currentDocument.getText();
+		const parsedData = this._sqlParser.parseSQL(sqlContent);
+		
+		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+
+		const statement = parsedData.statements[statementIndex];
+
+		if (statement.type === 'insert' && statement.values) {
+			statement.values.splice(rowIndex, 1);
+		} else if (statement.type === 'update' && statement.data) {
+			statement.data.splice(rowIndex, 1);
+		}
+
+		const newSQL = this._generateSQLFromData(parsedData);
+		this._updateSQLFile(newSQL);
+	}
+
+	private _generateSQLFromData(data: ParsedSQLData): string {
+		if (!data.success) return data.raw;
+
+		return data.statements.map(statement => {
+			switch (statement.type) {
+				case 'insert':
+					if (statement.tableName && statement.columns && statement.values) {
+						const columnsStr = statement.columns.join(', ');
+						const valuesStr = statement.values.map(row => 
+							`(${row.map(val => typeof val === 'string' ? `'${val}'` : val).join(', ')})`
+						).join(',\n  ');
+						return `INSERT INTO ${statement.tableName} (${columnsStr})\nVALUES\n  ${valuesStr};`;
+					}
+					break;
+				case 'update':
+					if (statement.tableName && statement.data) {
+						const setClause = statement.data.map(([col, val]) => 
+							`${col} = ${typeof val === 'string' ? `'${val}'` : val}`
+						).join(', ');
+						return `UPDATE ${statement.tableName}\nSET ${setClause};`;
+					}
+					break;
+				case 'select':
+					if (statement.tableName && statement.columns) {
+						const columnsStr = statement.columns.join(', ');
+						return `SELECT ${columnsStr}\nFROM ${statement.tableName};`;
+					}
+					break;
+			}
+			return '';
+		}).filter(sql => sql).join('\n\n');
 	}
 
 	private _updateSQLFile(sql: string) {
@@ -69,28 +207,19 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
-	private _sendCurrentSQL() {
-		const activeEditor = vscode.window.activeTextEditor;
-		if (activeEditor && activeEditor.document.languageId === 'sql') {
-			const sqlContent = activeEditor.document.getText();
-			this._view?.webview.postMessage({
-				type: 'currentSQL',
-				sql: sqlContent
-			});
-		}
-	}
-
 	private _getHtmlForWebview(webview: vscode.Webview) {
-		// Reactアプリのスクリプトパス
 		const scriptUri = webview.asWebviewUri(
 			vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.js')
 		);
+
+		const nonce = getNonce();
 
 		return `<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
     <title>SQL Viewer</title>
     <style>
         body {
@@ -208,8 +337,17 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
     <div id="root"></div>
-    <script type="module" src="${scriptUri}"></script>
+    <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
 	}
+}
+
+function getNonce() {
+	let text = '';
+	const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	for (let i = 0; i < 32; i++) {
+		text += possible.charAt(Math.floor(Math.random() * possible.length));
+	}
+	return text;
 }

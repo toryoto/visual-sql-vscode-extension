@@ -19,7 +19,7 @@
         {
           "id": "easy-sql-viewer",
           "name": "SQL Viewer",
-          "when": "resourceExtname == .sql"
+          "type": "webview"
         }
       ]
     },

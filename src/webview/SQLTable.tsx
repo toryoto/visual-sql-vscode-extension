@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { ParsedStatement } from '../sqlParser';
+
+interface ParsedStatement {
+    type: 'select' | 'insert' | 'update' | 'delete' | 'unknown';
+    tableName?: string;
+    columns?: string[];
+    values?: any[][];
+    where?: any;
+    set?: any;
+    data?: any[][];
+}
 
 interface SQLTableProps {
     statement: ParsedStatement;
