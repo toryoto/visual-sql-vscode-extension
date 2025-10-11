@@ -110,47 +110,50 @@ export const SQLTable: React.FC<SQLTableProps> = ({
                     <thead>
                         <tr>
                             {statement.columns.map((col, index) => (
-                                <th key={index} className="editable-cell">
-                                    {editingColumn === index ? (
-                                        <input
-                                            type="text"
-                                            value={editColumnValue}
-                                            onChange={(e) => setEditColumnValue(e.target.value)}
-                                            onBlur={handleColumnSave}
-                                            onKeyDown={handleColumnKeyPress}
-                                            autoFocus
-                                            className="cell-input"
-                                        />
-                                    ) : (
-                                        <div 
-                                            onClick={() => handleColumnClick(index, col)}
-                                            style={{ cursor: 'pointer' }}
-                                            title="クリックしてカラム名を編集"
+                                <th key={index} className="editable-cell" style={{ position: 'relative' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        {editingColumn === index ? (
+                                            <input
+                                                type="text"
+                                                value={editColumnValue}
+                                                onChange={(e) => setEditColumnValue(e.target.value)}
+                                                onBlur={handleColumnSave}
+                                                onKeyDown={handleColumnKeyPress}
+                                                autoFocus
+                                                className="cell-input"
+                                                style={{ flex: 1 }}
+                                            />
+                                        ) : (
+                                            <div 
+                                                onClick={() => handleColumnClick(index, col)}
+                                                style={{ cursor: 'pointer', flex: 1 }}
+                                                title="クリックしてカラム名を編集"
+                                            >
+                                                {col}
+                                            </div>
+                                        )}
+                                        <button 
+                                            onClick={() => onDeleteColumn(index)}
+                                            className="column-delete-btn"
+                                            title="カラムを削除"
                                         >
-                                            {col}
-                                        </div>
-                                    )}
-                                    <button 
-                                        onClick={() => onDeleteColumn(index)}
-                                        className="delete-btn"
-                                        title="カラムを削除"
-                                        style={{ marginLeft: '5px', fontSize: '10px' }}
-                                    >
-                                        ×
-                                    </button>
+                                            ×
+                                        </button>
+                                    </div>
                                 </th>
                             ))}
-                            <th>
-                                <button 
-                                    onClick={onAddColumn}
-                                    className="add-row-btn"
-                                    title="カラムを追加"
-                                    style={{ fontSize: '12px' }}
-                                >
-                                    + カラム
-                                </button>
+                            <th style={{ textAlign: 'center' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                    <button 
+                                        onClick={onAddColumn}
+                                        className="add-row-btn"
+                                        title="カラムを追加"
+                                        style={{ fontSize: '12px' }}
+                                    >
+                                        + カラム
+                                    </button>
+                                </div>
                             </th>
-                            <th>操作</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -177,14 +180,16 @@ export const SQLTable: React.FC<SQLTableProps> = ({
                                         )}
                                     </td>
                                 ))}
-                                <td>
-                                    <button 
-                                        onClick={() => onDeleteRow(rowIndex)}
-                                        className="delete-btn"
-                                        title="行を削除"
-                                    >
-                                        ×
-                                    </button>
+                                <td style={{ textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                        <button 
+                                            onClick={() => onDeleteRow(rowIndex)}
+                                            className="column-delete-btn"
+                                            title="行を削除"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -209,7 +214,18 @@ export const SQLTable: React.FC<SQLTableProps> = ({
                         <tr>
                             <th>カラム</th>
                             <th>値</th>
-                            <th>操作</th>
+                            <th style={{ textAlign: 'center' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                    <button 
+                                        onClick={onAddColumn}
+                                        className="add-row-btn"
+                                        title="カラムを追加"
+                                        style={{ fontSize: '12px' }}
+                                    >
+                                        + カラム
+                                    </button>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -251,14 +267,16 @@ export const SQLTable: React.FC<SQLTableProps> = ({
                                         row[1]
                                     )}
                                 </td>
-                                <td>
-                                    <button 
-                                        onClick={() => onDeleteRow(rowIndex)}
-                                        className="delete-btn"
-                                        title="行を削除"
-                                    >
-                                        ×
-                                    </button>
+                                <td style={{ textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                        <button 
+                                            onClick={() => onDeleteRow(rowIndex)}
+                                            className="column-delete-btn"
+                                            title="行を削除"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}

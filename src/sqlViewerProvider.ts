@@ -99,12 +99,16 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	}
 
 	private _handleCellEdit(statementIndex: number, rowIndex: number, columnIndex: number, value: any) {
-		if (!this._currentDocument) return;
+		if (!this._currentDocument) {
+			return;
+		}
 
 		const sqlContent = this._currentDocument.getText();
 		const parsedData = this._sqlParser.parseSQL(sqlContent);
 		
-		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+		if (!parsedData.success || !parsedData.statements[statementIndex]) {
+			return;
+		}
 
 		const statement = parsedData.statements[statementIndex];
 
@@ -123,12 +127,16 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	}
 
 	private _handleAddRow(statementIndex: number) {
-		if (!this._currentDocument) return;
+		if (!this._currentDocument) {
+			return;
+		}
 
 		const sqlContent = this._currentDocument.getText();
 		const parsedData = this._sqlParser.parseSQL(sqlContent);
 		
-		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+		if (!parsedData.success || !parsedData.statements[statementIndex]) {
+			return;
+		}
 
 		const statement = parsedData.statements[statementIndex];
 
@@ -151,12 +159,16 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	}
 
 	private _handleDeleteRow(statementIndex: number, rowIndex: number) {
-		if (!this._currentDocument) return;
+		if (!this._currentDocument) {
+			return;
+		}
 
 		const sqlContent = this._currentDocument.getText();
 		const parsedData = this._sqlParser.parseSQL(sqlContent);
 		
-		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+		if (!parsedData.success || !parsedData.statements[statementIndex]) {
+			return;
+		}
 
 		const statement = parsedData.statements[statementIndex];
 
@@ -171,7 +183,9 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	}
 
 	private _generateSQLFromData(data: ParsedSQLData): string {
-		if (!data.success) return data.raw;
+		if (!data.success) {
+			return data.raw;
+		}
 
 		return data.statements.map(statement => {
 			switch (statement.type) {
@@ -204,12 +218,16 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	}
 
 	private _handleAddColumn(statementIndex: number) {
-		if (!this._currentDocument) return;
+		if (!this._currentDocument) {
+			return;
+		}
 
 		const sqlContent = this._currentDocument.getText();
 		const parsedData = this._sqlParser.parseSQL(sqlContent);
 		
-		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+		if (!parsedData.success || !parsedData.statements[statementIndex]) {
+			return;
+		}
 
 		const statement = parsedData.statements[statementIndex];
 
@@ -237,12 +255,16 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	}
 
 	private _handleDeleteColumn(statementIndex: number, columnIndex: number) {
-		if (!this._currentDocument) return;
+		if (!this._currentDocument) {
+			return;
+		}
 
 		const sqlContent = this._currentDocument.getText();
 		const parsedData = this._sqlParser.parseSQL(sqlContent);
 		
-		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+		if (!parsedData.success || !parsedData.statements[statementIndex]) {
+			return;
+		}
 
 		const statement = parsedData.statements[statementIndex];
 
@@ -265,12 +287,16 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	}
 
 	private _handleEditColumnName(statementIndex: number, columnIndex: number, newName: string) {
-		if (!this._currentDocument) return;
+		if (!this._currentDocument) {
+			return;
+		}
 
 		const sqlContent = this._currentDocument.getText();
 		const parsedData = this._sqlParser.parseSQL(sqlContent);
 		
-		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+		if (!parsedData.success || !parsedData.statements[statementIndex]) {
+			return;
+		}
 
 		const statement = parsedData.statements[statementIndex];
 
@@ -358,20 +384,43 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
         }
         .table-container {
             margin-top: 10px;
+            overflow-x: auto;
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 4px;
+        }
+        .table-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: var(--vscode-scrollbarSlider-background);
+            border-radius: 4px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: var(--vscode-scrollbarSlider-hoverBackground);
+            border-radius: 4px;
+        }
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: var(--vscode-scrollbarSlider-activeBackground);
         }
         .sql-table {
             width: 100%;
+            min-width: max-content;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 0;
         }
         .sql-table th, .sql-table td {
             border: 1px solid var(--vscode-panel-border);
             padding: 8px;
             text-align: left;
+            white-space: nowrap;
+            min-width: 120px;
         }
         .sql-table th {
             background-color: var(--vscode-editor-background);
             font-weight: bold;
+            white-space: nowrap;
+            position: relative;
+            min-width: 120px;
         }
         .sql-table tr:nth-child(even) {
             background-color: var(--vscode-editor-background);
@@ -415,6 +464,27 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
         }
         .delete-btn:hover {
             background-color: var(--vscode-inputValidation-errorBorder);
+        }
+        .column-delete-btn {
+            background-color: transparent;
+            color: var(--vscode-errorForeground);
+            border: 1px solid var(--vscode-errorForeground);
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            padding: 0;
+            margin: 0;
+            font-size: 10px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .column-delete-btn:hover {
+            background-color: var(--vscode-errorForeground);
+            color: white;
         }
         .info-text {
             color: var(--vscode-descriptionForeground);
