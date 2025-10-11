@@ -1,0 +1,65 @@
+概要
+SQLファイルをテーブル形式で視覚的に編集できるVSCode拡張機能
+
+Phase 1: コア機能
+1. SQLファイルの認識と表示
+
+トリガー: アクティブなエディタで.sqlファイルを開いたとき
+表示場所: VSCodeの右側サイドバー(Webview View)
+対応SQL文: INSERT, UPDATE, SELECT文
+UI: Reactベースのテーブルグリッド表示
+
+2. 双方向編集機能
+
+テーブル → SQL: セル編集時に自動でSQLファイルを更新
+SQL → テーブル: SQLファイル編集時にテーブルビューを更新
+編集対象: カラム名、データ値、行の追加/削除
+
+
+Phase 2: DB連携機能(将来実装)
+1. データベース接続管理
+
+設定項目: DB URL(接続文字列)の入力と保存
+永続化: globalStateまたはsecrets APIで管理
+UI: 保存済みDB接続のドロップダウン選択
+
+2. SQL実行機能
+
+実行方法: 選択したDB接続に対して開いているSQLを実行
+結果表示: 実行結果をテーブルビューに表示
+エラー処理: SQL実行エラーの通知とログ表示
+
+
+技術スタック
+フロントエンド
+
+UI Framework: React 18+
+言語: TypeScript
+ビルドツール: webpack/esbuild
+
+バックエンド(拡張機能)
+
+言語: TypeScript
+VSCode API: Webview View API, FileSystemWatcher API
+
+SQLパーサー
+
+ライブラリ: node-sql-parser
+
+理由: 最も活発にメンテナンスされ、主要なSQL方言をサポート
+対応: MySQL, PostgreSQL, SQLite, etc.
+
+
+
+状態管理
+
+拡張機能側: VSCode Context API(workspaceState, globalState)
+Webview側: React Hooks(useState, useReducer)
+
+
+アーキテクチャ
+[SQLファイル] ←→ [Extension(TS)] ←→ [Webview(React)]
+                      ↓
+                [node-sql-parser]
+                      ↓
+                [workspaceState]
