@@ -77,6 +77,30 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
         });
     };
 
+    const handleAddColumn = (statementIndex: number): void => {
+        vscode.postMessage({ 
+            type: 'addColumn', 
+            statementIndex 
+        });
+    };
+
+    const handleDeleteColumn = (statementIndex: number, columnIndex: number): void => {
+        vscode.postMessage({ 
+            type: 'deleteColumn', 
+            statementIndex, 
+            columnIndex 
+        });
+    };
+
+    const handleEditColumnName = (statementIndex: number, columnIndex: number, newName: string): void => {
+        vscode.postMessage({ 
+            type: 'editColumnName', 
+            statementIndex, 
+            columnIndex, 
+            newName 
+        });
+    };
+
     if (loading) {
         return (
             <div className="loading">
@@ -139,6 +163,9 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
                                 }
                                 onAddRow={() => handleAddRow(index)}
                                 onDeleteRow={(rowIndex: number) => handleDeleteRow(index, rowIndex)}
+                                onAddColumn={() => handleAddColumn(index)}
+                                onDeleteColumn={(columnIndex: number) => handleDeleteColumn(index, columnIndex)}
+                                onEditColumnName={(columnIndex: number, newName: string) => handleEditColumnName(index, columnIndex, newName)}
                             />
                         </div>
                     ))

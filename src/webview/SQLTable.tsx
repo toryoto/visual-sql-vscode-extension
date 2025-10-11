@@ -15,16 +15,24 @@ interface SQLTableProps {
     onCellEdit: (rowIndex: number, columnIndex: number, value: any) => void;
     onAddRow: () => void;
     onDeleteRow: (rowIndex: number) => void;
+    onAddColumn: () => void;
+    onDeleteColumn: (columnIndex: number) => void;
+    onEditColumnName: (columnIndex: number, newName: string) => void;
 }
 
 export const SQLTable: React.FC<SQLTableProps> = ({ 
     statement, 
     onCellEdit, 
     onAddRow, 
-    onDeleteRow 
+    onDeleteRow,
+    onAddColumn,
+    onDeleteColumn,
+    onEditColumnName
 }) => {
     const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
     const [editValue, setEditValue] = useState<string>('');
+    const [editingColumn, setEditingColumn] = useState<number | null>(null);
+    const [editColumnValue, setEditColumnValue] = useState<string>('');
 
     const handleCellClick = (rowIndex: number, colIndex: number, currentValue: any) => {
         setEditingCell({ row: rowIndex, col: colIndex });
@@ -52,6 +60,32 @@ export const SQLTable: React.FC<SQLTableProps> = ({
         }
     };
 
+    const handleColumnClick = (columnIndex: number, currentName: string) => {
+        setEditingColumn(columnIndex);
+        setEditColumnValue(currentName);
+    };
+
+    const handleColumnSave = () => {
+        if (editingColumn !== null) {
+            onEditColumnName(editingColumn, editColumnValue);
+            setEditingColumn(null);
+            setEditColumnValue('');
+        }
+    };
+
+    const handleColumnCancel = () => {
+        setEditingColumn(null);
+        setEditColumnValue('');
+    };
+
+    const handleColumnKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleColumnSave();
+        } else if (e.key === 'Escape') {
+            handleColumnCancel();
+        }
+    };
+
     const renderTable = () => {
         switch (statement.type) {
             case 'insert':
@@ -76,8 +110,46 @@ export const SQLTable: React.FC<SQLTableProps> = ({
                     <thead>
                         <tr>
                             {statement.columns.map((col, index) => (
-                                <th key={index}>{col}</th>
+                                <th key={index} className="editable-cell">
+                                    {editingColumn === index ? (
+                                        <input
+                                            type="text"
+                                            value={editColumnValue}
+                                            onChange={(e) => setEditColumnValue(e.target.value)}
+                                            onBlur={handleColumnSave}
+                                            onKeyDown={handleColumnKeyPress}
+                                            autoFocus
+                                            className="cell-input"
+                                        />
+                                    ) : (
+                                        <div 
+                                            onClick={() => handleColumnClick(index, col)}
+                                            style={{ cursor: 'pointer' }}
+                                            title="クリックしてカラム名を編集"
+                                        >
+                                            {col}
+                                        </div>
+                                    )}
+                                    <button 
+                                        onClick={() => onDeleteColumn(index)}
+                                        className="delete-btn"
+                                        title="カラムを削除"
+                                        style={{ marginLeft: '5px', fontSize: '10px' }}
+                                    >
+                                        ×
+                                    </button>
+                                </th>
                             ))}
+                            <th>
+                                <button 
+                                    onClick={onAddColumn}
+                                    className="add-row-btn"
+                                    title="カラムを追加"
+                                    style={{ fontSize: '12px' }}
+                                >
+                                    + カラム
+                                </button>
+                            </th>
                             <th>操作</th>
                         </tr>
                     </thead>

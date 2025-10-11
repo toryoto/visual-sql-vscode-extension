@@ -100,9 +100,13 @@ export class SQLParser {
             .map(stmt => stmt.trim())
             .filter(stmt => {
                 // 空文字列を除外
-                if (!stmt) return false;
+                if (!stmt) {
+                    return false;
+                }
                 // ブロックコメントのみの文を除外
-                if (stmt.startsWith('/*') && stmt.endsWith('*/')) return false;
+                if (stmt.startsWith('/*') && stmt.endsWith('*/')) {
+                    return false;
+                }
                 return true;
             });
         
@@ -126,6 +130,16 @@ export class SQLParser {
         } catch (error) {
             console.error('Statement parsing error:', error);
             console.error('Failed statement:', statement);
+            
+            // エラーメッセージから詳細を抽出
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            // カラム数と値の数の不一致エラーの場合、特別な処理を行う
+            if (errorMessage.includes('column count doesn\'t match value count')) {
+                console.log('Detected column count mismatch error, attempting to fix...');
+                return this.handleColumnCountMismatchError(statement, errorMessage);
+            }
+            
             return null;
         }
     }
@@ -237,8 +251,47 @@ export class SQLParser {
                 console.log('ast.values is not an array, converting...');
                 const singleValues = ast.values;
                 
-                // values.valueが配列の場合
-                if (singleValues.value && Array.isArray(singleValues.value)) {
+                // パターン1: ast.values.type === 'values' で ast.values.values が配列
+                if (singleValues.type === 'values' && singleValues.values && Array.isArray(singleValues.values)) {
+                    console.log('Processing ast.values.values array with', singleValues.values.length, 'items');
+                    singleValues.values.forEach((valueSet: any, index: number) => {
+                        console.log(`Processing value set ${index}:`, JSON.stringify(valueSet, null, 2));
+                        const row: any[] = [];
+                        
+                        // パターン1: valueSet.value が配列
+                        if (valueSet.value && Array.isArray(valueSet.value)) {
+                            valueSet.value.forEach((val: any) => {
+                                this.extractValue(val, row);
+                            });
+                        } 
+                        // パターン2: valueSet.expr が存在
+                        else if (valueSet.expr && Array.isArray(valueSet.expr)) {
+                            valueSet.expr.forEach((val: any) => {
+                                this.extractValue(val, row);
+                            });
+                        }
+                        // パターン3: valueSet自体が配列
+                        else if (Array.isArray(valueSet)) {
+                            valueSet.forEach((val: any) => {
+                                this.extractValue(val, row);
+                            });
+                        }
+                        // パターン4: valueSet.type が 'expr_list'
+                        else if (valueSet.type === 'expr_list' && valueSet.value) {
+                            valueSet.value.forEach((val: any) => {
+                                this.extractValue(val, row);
+                            });
+                        }
+                        
+                        console.log(`Row ${index} extracted:`, row);
+                        
+                        if (row.length > 0) {
+                            values.push(row);
+                        }
+                    });
+                }
+                // パターン2: values.valueが配列の場合（古い形式のサポート）
+                else if (singleValues.value && Array.isArray(singleValues.value)) {
                     const row: any[] = [];
                     singleValues.value.forEach((val: any) => {
                         this.extractValue(val, row);
@@ -292,11 +345,15 @@ export class SQLParser {
 
         console.log('INSERT parsed - final values:', values);
 
+        // データの整合性をチェックして修正
+        const validatedValues = this.validateAndFixInsertData(columns, values);
+        console.log('INSERT validated values:', validatedValues);
+
         return {
             type: 'insert',
             tableName,
             columns,
-            values
+            values: validatedValues
         };
     }
 
@@ -320,6 +377,175 @@ export class SQLParser {
             console.warn('Unknown value type:', val);
             row.push(String(val));
         }
+    }
+
+    // INSERT文のデータ整合性をチェックして修正する
+    private validateAndFixInsertData(columns: string[], values: any[][]): any[][] {
+        const expectedColumnCount = columns.length;
+        console.log(`Validating INSERT data: expected ${expectedColumnCount} columns`);
+        
+        const validatedValues = values.map((row, rowIndex) => {
+            const currentValueCount = row.length;
+            console.log(`Row ${rowIndex}: has ${currentValueCount} values, expected ${expectedColumnCount}`);
+            
+            if (currentValueCount === expectedColumnCount) {
+                // カラム数が一致している場合、そのまま返す
+                return row;
+            } else if (currentValueCount > expectedColumnCount) {
+                // 値が多すぎる場合、余分な値を削除
+                console.warn(`Row ${rowIndex}: too many values (${currentValueCount}), trimming to ${expectedColumnCount}`);
+                return row.slice(0, expectedColumnCount);
+            } else {
+                // 値が少なすぎる場合、不足分を空文字で埋める
+                console.warn(`Row ${rowIndex}: too few values (${currentValueCount}), padding with empty strings to ${expectedColumnCount}`);
+                const paddedRow = [...row];
+                while (paddedRow.length < expectedColumnCount) {
+                    paddedRow.push('');
+                }
+                return paddedRow;
+            }
+        });
+        
+        console.log('Validated values:', validatedValues);
+        return validatedValues;
+    }
+
+    // カラム数不一致エラーを処理する
+    private handleColumnCountMismatchError(statement: string, errorMessage: string): ParsedStatement | null {
+        console.log('Attempting to parse INSERT statement with column count mismatch...');
+        
+        try {
+            // INSERT文の基本的な構造を正規表現で抽出
+            const insertMatch = statement.match(/INSERT\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*(.+)/is);
+            if (!insertMatch) {
+                console.error('Could not parse INSERT statement structure');
+                return null;
+            }
+
+            const tableName = insertMatch[1];
+            const columnsStr = insertMatch[2];
+            const valuesStr = insertMatch[3];
+
+            // カラム名を抽出
+            const columns = columnsStr.split(',').map(col => col.trim().replace(/['"]/g, ''));
+            console.log('Extracted columns:', columns);
+
+            // VALUES句を解析して行データを抽出
+            const values = this.extractValuesFromString(valuesStr);
+            console.log('Extracted values:', values);
+
+            // データの整合性をチェックして修正
+            const validatedValues = this.validateAndFixInsertData(columns, values);
+
+            return {
+                type: 'insert',
+                tableName,
+                columns,
+                values: validatedValues
+            };
+        } catch (error) {
+            console.error('Failed to handle column count mismatch error:', error);
+            return null;
+        }
+    }
+
+    // VALUES句の文字列から行データを抽出する
+    private extractValuesFromString(valuesStr: string): any[][] {
+        const rows: any[][] = [];
+        
+        // VALUES句内の各行を抽出（括弧で囲まれた部分）
+        const rowMatches = valuesStr.match(/\([^)]+\)/g);
+        if (!rowMatches) {
+            console.error('No value rows found in VALUES clause');
+            return rows;
+        }
+
+        rowMatches.forEach((rowStr, index) => {
+            console.log(`Processing row ${index}: ${rowStr}`);
+            
+            // 括弧を除去
+            const cleanRowStr = rowStr.slice(1, -1);
+            
+            // カンマで分割（ただし、文字列内のカンマは除外）
+            const values = this.splitValueString(cleanRowStr);
+            console.log(`Row ${index} values:`, values);
+            
+            rows.push(values);
+        });
+
+        return rows;
+    }
+
+    // 値の文字列を分割する（文字列内のカンマを考慮）
+    private splitValueString(valueStr: string): any[] {
+        const values: any[] = [];
+        let currentValue = '';
+        let inString = false;
+        let stringChar = '';
+        let i = 0;
+
+        while (i < valueStr.length) {
+            const char = valueStr[i];
+
+            if (!inString) {
+                if (char === '\'' || char === '"') {
+                    inString = true;
+                    stringChar = char;
+                    currentValue += char;
+                } else if (char === ',') {
+                    values.push(this.cleanValue(currentValue.trim()));
+                    currentValue = '';
+                } else {
+                    currentValue += char;
+                }
+            } else {
+                currentValue += char;
+                if (char === stringChar) {
+                    // エスケープされたクォートかチェック
+                    if (i + 1 < valueStr.length && valueStr[i + 1] === stringChar) {
+                        currentValue += valueStr[i + 1];
+                        i++; // 次の文字をスキップ
+                    } else {
+                        inString = false;
+                        stringChar = '';
+                    }
+                }
+            }
+            i++;
+        }
+
+        // 最後の値を追加
+        if (currentValue.trim()) {
+            values.push(this.cleanValue(currentValue.trim()));
+        }
+
+        return values;
+    }
+
+    // 値をクリーンアップする（クォートの除去、型変換など）
+    private cleanValue(value: string): any {
+        if (!value) {
+            return '';
+        }
+
+        // 文字列値（シングルクォートまたはダブルクォートで囲まれている）
+        if ((value.startsWith('\'') && value.endsWith('\'')) || 
+            (value.startsWith('"') && value.endsWith('"'))) {
+            return value.slice(1, -1);
+        }
+
+        // 数値
+        if (!isNaN(Number(value)) && value.trim() !== '') {
+            return Number(value);
+        }
+
+        // NULL
+        if (value.toUpperCase() === 'NULL') {
+            return null;
+        }
+
+        // その他は文字列として返す
+        return value;
     }
 
     private parseUpdateStatement(ast: any): ParsedStatement {

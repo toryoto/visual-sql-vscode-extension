@@ -54,6 +54,15 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 					case 'deleteRow':
 						this._handleDeleteRow(message.statementIndex, message.rowIndex);
 						return;
+					case 'addColumn':
+						this._handleAddColumn(message.statementIndex);
+						return;
+					case 'deleteColumn':
+						this._handleDeleteColumn(message.statementIndex, message.columnIndex);
+						return;
+					case 'editColumnName':
+						this._handleEditColumnName(message.statementIndex, message.columnIndex, message.newName);
+						return;
 				}
 			},
 			undefined,
@@ -194,6 +203,85 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		}).filter(sql => sql).join('\n\n');
 	}
 
+	private _handleAddColumn(statementIndex: number) {
+		if (!this._currentDocument) return;
+
+		const sqlContent = this._currentDocument.getText();
+		const parsedData = this._sqlParser.parseSQL(sqlContent);
+		
+		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+
+		const statement = parsedData.statements[statementIndex];
+
+		if (statement.type === 'insert' && statement.columns) {
+			// 新しいカラム名を生成（column1, column2, ...）
+			let newColumnName = 'column1';
+			let counter = 1;
+			while (statement.columns.includes(newColumnName)) {
+				counter++;
+				newColumnName = `column${counter}`;
+			}
+			
+			statement.columns.push(newColumnName);
+			
+			// 既存の行データに新しいカラム用の空の値を追加
+			if (statement.values) {
+				statement.values.forEach(row => {
+					row.push('');
+				});
+			}
+		}
+
+		const newSQL = this._generateSQLFromData(parsedData);
+		this._updateSQLFile(newSQL);
+	}
+
+	private _handleDeleteColumn(statementIndex: number, columnIndex: number) {
+		if (!this._currentDocument) return;
+
+		const sqlContent = this._currentDocument.getText();
+		const parsedData = this._sqlParser.parseSQL(sqlContent);
+		
+		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+
+		const statement = parsedData.statements[statementIndex];
+
+		if (statement.type === 'insert' && statement.columns && columnIndex < statement.columns.length) {
+			// カラムを削除
+			statement.columns.splice(columnIndex, 1);
+			
+			// 既存の行データから対応するカラムを削除
+			if (statement.values) {
+				statement.values.forEach(row => {
+					if (columnIndex < row.length) {
+						row.splice(columnIndex, 1);
+					}
+				});
+			}
+		}
+
+		const newSQL = this._generateSQLFromData(parsedData);
+		this._updateSQLFile(newSQL);
+	}
+
+	private _handleEditColumnName(statementIndex: number, columnIndex: number, newName: string) {
+		if (!this._currentDocument) return;
+
+		const sqlContent = this._currentDocument.getText();
+		const parsedData = this._sqlParser.parseSQL(sqlContent);
+		
+		if (!parsedData.success || !parsedData.statements[statementIndex]) return;
+
+		const statement = parsedData.statements[statementIndex];
+
+		if (statement.type === 'insert' && statement.columns && columnIndex < statement.columns.length) {
+			statement.columns[columnIndex] = newName;
+		}
+
+		const newSQL = this._generateSQLFromData(parsedData);
+		this._updateSQLFile(newSQL);
+	}
+
 	private _updateSQLFile(sql: string) {
 		const activeEditor = vscode.window.activeTextEditor;
 		if (activeEditor && activeEditor.document.languageId === 'sql') {
@@ -332,6 +420,18 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
             color: var(--vscode-descriptionForeground);
             font-style: italic;
             margin-top: 10px;
+        }
+        .column-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .column-name {
+            flex: 1;
+        }
+        .column-actions {
+            display: flex;
+            gap: 2px;
         }
     </style>
 </head>
