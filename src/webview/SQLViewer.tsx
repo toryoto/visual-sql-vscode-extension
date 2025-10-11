@@ -121,22 +121,28 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
                 <div>ファイル: {fileName.split('/').pop()}</div>
             </div>
             <div className="content">
-                {data.statements.map((statement, index) => (
-                    <div key={index} className="statement-container">
-                        <h4>
-                            {statement.type.toUpperCase()}文
-                            {statement.tableName && ` - ${statement.tableName}`}
-                        </h4>
-                        <SQLTable
-                            statement={statement}
-                            onCellEdit={(rowIndex: number, columnIndex: number, value: any) => 
-                                handleCellEdit(index, rowIndex, columnIndex, value)
-                            }
-                            onAddRow={() => handleAddRow(index)}
-                            onDeleteRow={(rowIndex: number) => handleDeleteRow(index, rowIndex)}
-                        />
+                {data.statements.length === 0 ? (
+                    <div className="info-text">
+                        SQL文が見つかりませんでした
                     </div>
-                ))}
+                ) : (
+                    data.statements.map((statement, index) => (
+                        <div key={index} className="statement-container">
+                            <h4>
+                                {statement.type.toUpperCase()}文
+                                {statement.tableName && ` - ${statement.tableName}`}
+                            </h4>
+                            <SQLTable
+                                statement={statement}
+                                onCellEdit={(rowIndex: number, columnIndex: number, value: any) => 
+                                    handleCellEdit(index, rowIndex, columnIndex, value)
+                                }
+                                onAddRow={() => handleAddRow(index)}
+                                onDeleteRow={(rowIndex: number) => handleDeleteRow(index, rowIndex)}
+                            />
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );

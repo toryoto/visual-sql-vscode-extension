@@ -3,28 +3,25 @@
 'use strict';
 
 const path = require('path');
+const webpack = require('webpack');
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
 
 /** @type WebpackConfig */
 const extensionConfig = {
-  target: 'node', // VS Code extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
-	mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
-
-  entry: './src/extension.ts', // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
+  target: 'node',
+  mode: 'none',
+  entry: './src/extension.ts',
   output: {
-    // the bundle is stored in the 'dist' folder (check package.json), 📖 -> https://webpack.js.org/configuration/output/
     path: path.resolve(__dirname, 'dist'),
     filename: 'extension.js',
     libraryTarget: 'commonjs2'
   },
   externals: {
-    vscode: 'commonjs vscode' // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/
-    // modules added here also need to be added in the .vscodeignore file
+    vscode: 'commonjs vscode'
   },
   resolve: {
-    // support reading TypeScript and JavaScript files, 📖 -> https://github.com/TypeStrong/ts-loader
     extensions: ['.ts', '.js', '.tsx', '.jsx']
   },
   module: {
@@ -42,7 +39,7 @@ const extensionConfig = {
   },
   devtool: 'nosources-source-map',
   infrastructureLogging: {
-    level: "log", // enables logging required for problem matchers
+    level: "log",
   },
 };
 
@@ -54,14 +51,43 @@ const webviewConfig = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'webview.js',
-    libraryTarget: 'module'
-  },
-  experiments: {
-    outputModule: true
+    libraryTarget: 'umd',
+    globalObject: 'self'
   },
   resolve: {
-    extensions: ['.ts', '.js', '.tsx', '.jsx']
+    extensions: ['.tsx', '.ts', '.jsx', '.js'],
+    fallback: {
+      "fs": false,
+      "path": false,
+      "crypto": false,
+      "stream": false,
+      "buffer": false,
+      "util": false,
+      "assert": false,
+      "process": false,
+      "os": false,
+      "constants": false,
+      "events": false,
+      "http": false,
+      "https": false,
+      "zlib": false,
+      "url": false,
+      "querystring": false
+    }
   },
+  externals: {
+    'node-sql-parser': 'node-sql-parser'
+  },
+  plugins: [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify('production'),
+      'process.browser': 'true',
+      'global': 'globalThis'
+    }),
+    new webpack.ProvidePlugin({
+      React: 'react'
+    })
+  ],
   module: {
     rules: [
       {
@@ -69,7 +95,15 @@ const webviewConfig = {
         exclude: /node_modules/,
         use: [
           {
-            loader: 'ts-loader'
+            loader: 'ts-loader',
+            options: {
+              transpileOnly: true,
+              compilerOptions: {
+                module: 'esnext',
+                target: 'es2020',
+                jsx: 'react-jsx'
+              }
+            }
           }
         ]
       }
