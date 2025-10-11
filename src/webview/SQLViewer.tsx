@@ -147,13 +147,13 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
             <div className="content">
                 {data.statements.length === 0 ? (
                     <div className="info-text">
-                        SQL文が見つかりませんでした
+                        SQLが見つかりませんでした
                     </div>
                 ) : (
                     data.statements.map((statement, index) => (
                         <div key={index} className="statement-container">
                             <h4>
-                                {statement.type.toUpperCase()}文
+                                {statement.type.toUpperCase()}
                                 {statement.tableName && ` - ${statement.tableName}`}
                             </h4>
                             <SQLTable

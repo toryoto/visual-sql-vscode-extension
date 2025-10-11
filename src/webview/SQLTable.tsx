@@ -95,13 +95,13 @@ export const SQLTable: React.FC<SQLTableProps> = ({
             case 'select':
                 return renderSelectTable();
             default:
-                return <div>未対応のSQL文タイプ: {statement.type}</div>;
+                return <div>未対応のSQLタイプ: {statement.type}</div>;
         }
     };
 
     const renderInsertTable = () => {
         if (!statement.columns || !statement.values) {
-            return <div>INSERT文のデータがありません</div>;
+            return <div>INSERTのデータがありません</div>;
         }
 
         return (
@@ -204,7 +204,7 @@ export const SQLTable: React.FC<SQLTableProps> = ({
 
     const renderUpdateTable = () => {
         if (!statement.data) {
-            return <div>UPDATE文のデータがありません</div>;
+            return <div>UPDATEのデータがありません</div>;
         }
 
         return (
@@ -291,7 +291,7 @@ export const SQLTable: React.FC<SQLTableProps> = ({
 
     const renderSelectTable = () => {
         if (!statement.columns) {
-            return <div>SELECT文のカラム情報がありません</div>;
+            return <div>SELECTのカラム情報がありません</div>;
         }
 
         return (
@@ -311,7 +311,7 @@ export const SQLTable: React.FC<SQLTableProps> = ({
                     </tbody>
                 </table>
                 <div className="info-text">
-                    SELECT文は読み取り専用です
+                    SELECTは読み取り専用です
                 </div>
             </div>
         );
