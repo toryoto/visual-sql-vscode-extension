@@ -186,7 +186,7 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		if (!data.success) {
 			return data.raw;
 		}
-
+	
 		return data.statements.map(statement => {
 			switch (statement.type) {
 				case 'insert':
@@ -194,8 +194,8 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 						const columnsStr = statement.columns.join(', ');
 						const valuesStr = statement.values.map(row => 
 							`(${row.map(val => typeof val === 'string' ? `'${val}'` : val).join(', ')})`
-						).join(',\n  ');
-						return `INSERT INTO ${statement.tableName} (${columnsStr})\nVALUES\n  ${valuesStr};`;
+						).join(', ');  // ← カンマ+スペースのみ(改行なし)
+						return `INSERT INTO ${statement.tableName} (${columnsStr}) VALUES ${valuesStr};`;
 					}
 					break;
 				case 'update':
@@ -203,18 +203,18 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 						const setClause = statement.data.map(([col, val]) => 
 							`${col} = ${typeof val === 'string' ? `'${val}'` : val}`
 						).join(', ');
-						return `UPDATE ${statement.tableName}\nSET ${setClause};`;
+						return `UPDATE ${statement.tableName} SET ${setClause};`;
 					}
 					break;
 				case 'select':
 					if (statement.tableName && statement.columns) {
 						const columnsStr = statement.columns.join(', ');
-						return `SELECT ${columnsStr}\nFROM ${statement.tableName};`;
+						return `SELECT ${columnsStr} FROM ${statement.tableName};`;
 					}
 					break;
 			}
 			return '';
-		}).filter(sql => sql).join('\n\n');
+		}).filter(sql => sql).join(' ');
 	}
 
 	private _handleAddColumn(statementIndex: number) {

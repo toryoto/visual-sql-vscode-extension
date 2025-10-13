@@ -26,7 +26,7 @@ SQLファイルをテーブル形式で視覚的に編集できるVSCode拡張�
 
 ## スクリーンショット
 
-![Feature Screenshot](images/screenshot.png)
+![Feature Screenshot](docs/image.png)
 
 ## 要件
 
