@@ -14,7 +14,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// SQL Viewer Providerを登録
 	const provider = new SQLViewerProvider(context.extensionUri);
 	context.subscriptions.push(
-		vscode.window.registerWebviewViewProvider('easy-sql-viewer', provider)
+		vscode.window.registerWebviewViewProvider('visual-sql-viewer', provider)
 	);
 
 	// アクティブなエディタが変更されたときの処理

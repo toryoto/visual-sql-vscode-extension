@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { SQLParser, ParsedSQLData } from './sqlParser';
 
 export class SQLViewerProvider implements vscode.WebviewViewProvider {
-	public static readonly viewType = 'easy-sql-viewer';
+	public static readonly viewType = 'visual-sql-viewer';
 	private _view?: vscode.WebviewView;
 	private _sqlParser: SQLParser;
 	private _currentDocument?: vscode.TextDocument;
