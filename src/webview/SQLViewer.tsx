@@ -113,7 +113,7 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
         return (
             <div className="container">
                 <div className="header">
-                    <h3>SQL Viewer</h3>
+                    <h3>Visual SQL</h3>
                     <div>SQLファイルを開いてください</div>
                 </div>
             </div>
@@ -124,7 +124,7 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
         return (
             <div className="container">
                 <div className="header">
-                    <h3>SQL Viewer</h3>
+                    <h3>Visual SQL</h3>
                     <div>ファイル: {fileName.split('/').pop()}</div>
                 </div>
                 <div className="content">
@@ -141,7 +141,7 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
     return (
         <div className="container">
             <div className="header">
-                <h3>SQL Viewer</h3>
+                <h3>Visual SQL</h3>
                 <div>ファイル: {fileName.split('/').pop()}</div>
             </div>
             <div className="content">

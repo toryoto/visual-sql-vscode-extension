@@ -1,13 +1,25 @@
 {
-  "name": "easy-sql",
-  "displayName": "easy-sql",
-  "description": "",
+  "name": "visual-sql",
+  "displayName": "Visual SQL",
+  "description": "Visual SQL Viewer for VS Code",
   "version": "0.0.1",
+  "publisher": "Ryoto Taga",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toryoto/visual-sql-vscode-extension"
+  },
+  "keywords": [
+    "sql",
+    "viewer",
+    "table",
+    "editor"
+  ],
   "engines": {
     "vscode": "^1.105.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages",
+    "Visualization"
   ],
   "activationEvents": [
     "onLanguage:sql"
@@ -17,15 +29,15 @@
     "views": {
       "explorer": [
         {
-          "id": "easy-sql-viewer",
-          "name": "SQL Viewer",
+          "id": "visual-sql-viewer",
+          "name": "Visual SQL",
           "type": "webview"
         }
       ]
     },
     "commands": [
       {
-        "command": "easy-sql.helloWorld",
+        "command": "visual-sql.helloWorld",
         "title": "Hello World"
       }
     ]
@@ -58,8 +70,8 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
-    "node-sql-parser": "^5.3.12",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "node-sql-parser": "5.3.12",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }
