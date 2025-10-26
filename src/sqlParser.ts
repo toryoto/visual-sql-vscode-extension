@@ -72,43 +72,27 @@ export class SQLParser {
     private splitSQLStatements(sql: string): string[] {
         console.log('Splitting SQL statements...');
         
-        // 行ごとに分割してコメントを除去
-        const lines = sql.split('\n');
-        const cleanedLines: string[] = [];
+        // ブロックコメント /* */ を除去
+        let cleanedSQL = sql.replace(/\/\*[\s\S]*?\*\//g, '');
         
-        for (let line of lines) {
-            // 行コメント (--) を除去
-            const commentIndex = line.indexOf('--');
-            if (commentIndex !== -1) {
-                line = line.substring(0, commentIndex);
-            }
-            
-            // 空白行でなければ追加
-            const trimmed = line.trim();
-            if (trimmed) {
-                cleanedLines.push(line);
-            }
-        }
+        // 行ごとに分割して行コメントを除去
+        const lines = cleanedSQL.split('\n');
+        const cleanedLines = lines
+            .map(line => {
+                const commentIndex = line.indexOf('--');
+                return commentIndex !== -1 ? line.substring(0, commentIndex) : line;
+            })
+            .filter(line => line.trim());
         
         // 1つの文字列に結合
-        const cleanedSQL = cleanedLines.join('\n');
+        cleanedSQL = cleanedLines.join('\n');
         console.log('Cleaned SQL (comments removed):', cleanedSQL);
         
         // セミコロンで分割
         const statements = cleanedSQL
             .split(';')
             .map(stmt => stmt.trim())
-            .filter(stmt => {
-                // 空文字列を除外
-                if (!stmt) {
-                    return false;
-                }
-                // ブロックコメントのみの文を除外
-                if (stmt.startsWith('/*') && stmt.endsWith('*/')) {
-                    return false;
-                }
-                return true;
-            });
+            .filter(stmt => stmt);
         
         console.log('Statements after split:', statements);
         return statements;

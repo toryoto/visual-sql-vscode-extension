@@ -214,7 +214,7 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 					break;
 			}
 			return '';
-		}).filter(sql => sql).join(' ');
+		}).filter(sql => sql).join('\n');
 	}
 
 	private _handleAddColumn(statementIndex: number) {
