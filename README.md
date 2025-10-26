@@ -1,43 +1,51 @@
-# Visual SQL    
+# Visual SQL
 
-SQLファイルをテーブル形式で視覚的に編集できるVSCode拡張機能です。
+View and edit SQL files in a table format directly in VS Code.
 
-## 機能
+## Features
 
-- INSERT文、UPDATE文、SELECT文の視覚的な表示
-- テーブル形式でのデータ編集
-- セルの直接編集
-- 行の追加・削除
-- カラムの追加・削除
-- カラム名の編集
-- リアルタイムでのSQL更新
+- View INSERT, UPDATE, and SELECT statements as tables
+- Edit cells directly by clicking them
+- Add or remove rows and columns
+- Auto-saves changes back to your SQL file
 
-## 使い方
+## Usage
 
-1. `.sql`ファイルを開く
-2. サイドバーの「SQL Viewer」パネルを確認
-3. テーブル形式でデータを編集
+1. Open a .sql file
+2. Find the "Visual SQL" panel in the sidebar
+3. Edit your data in the table
 
-## サポートされるSQL文
+## Supported SQL
 
-- INSERT INTO
-- UPDATE
-- SELECT
+- INSERT INTO - read/write
+- UPDATE - read/write
+- SELECT - read-only
 
-## スクリーンショット
+## Screenshot
 
 ![Feature Screenshot](docs/image.png)
 
-## 要件
+## Requirements
 
-- Visual Studio Code 1.105.0以上
+- VS Code 1.105.0 or higher
 
-## 既知の問題
+## Known Issues
 
-現在、既知の問題はありません。
+Report bugs on GitHub
 
-## リリースノート
+## Release Notes
+
+### 0.0.2
+
+- Added support for Boolean, Null, and Number data types
+- Fixed table editing issue where content gets rewritten to a single line
+- Better performance (debounced updates)
+- Added input validation
 
 ### 0.0.1
 
-初回リリース
+- Initial release
+
+## License
+
+MIT
