@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SQLTable } from './SQLTable';
 
-// ParsedSQLData型とParsedStatement型をここで定義
 interface ParsedSQLData {
     success: boolean;
     statements: ParsedStatement[];
@@ -29,19 +28,13 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
     const [loading, setLoading] = useState<boolean>(true);
 
     useEffect(() => {
-        console.log('SQLViewer component mounted');
-        
         // メッセージリスナー
         const handleMessage = (event: MessageEvent) => {
-            console.log('Message received in webview:', event.data);
             const message = event.data;
-            switch (message.type) {
-                case 'updateData':
-                    console.log('Updating data:', message.data);
-                    setData(message.data);
-                    setFileName(message.fileName);
-                    setLoading(false);
-                    break;
+            if (message.type === 'updateData') {
+                setData(message.data);
+                setFileName(message.fileName);
+                setLoading(false);
             }
         };
 
@@ -50,9 +43,10 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
         return () => {
             window.removeEventListener('message', handleMessage);
         };
-    }, [vscode]);
+    }, []);
 
-    const handleCellEdit = (statementIndex: number, rowIndex: number, columnIndex: number, value: any): void => {
+    // useCallbackでメモ化してパフォーマンスを向上
+    const handleCellEdit = useCallback((statementIndex: number, rowIndex: number, columnIndex: number, value: any): void => {
         vscode.postMessage({ 
             type: 'cellEdit', 
             statementIndex, 
@@ -60,46 +54,46 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
             columnIndex, 
             value 
         });
-    };
+    }, [vscode]);
 
-    const handleAddRow = (statementIndex: number): void => {
+    const handleAddRow = useCallback((statementIndex: number): void => {
         vscode.postMessage({ 
             type: 'addRow', 
             statementIndex 
         });
-    };
+    }, [vscode]);
 
-    const handleDeleteRow = (statementIndex: number, rowIndex: number): void => {
+    const handleDeleteRow = useCallback((statementIndex: number, rowIndex: number): void => {
         vscode.postMessage({ 
             type: 'deleteRow', 
             statementIndex, 
             rowIndex 
         });
-    };
+    }, [vscode]);
 
-    const handleAddColumn = (statementIndex: number): void => {
+    const handleAddColumn = useCallback((statementIndex: number): void => {
         vscode.postMessage({ 
             type: 'addColumn', 
             statementIndex 
         });
-    };
+    }, [vscode]);
 
-    const handleDeleteColumn = (statementIndex: number, columnIndex: number): void => {
+    const handleDeleteColumn = useCallback((statementIndex: number, columnIndex: number): void => {
         vscode.postMessage({ 
             type: 'deleteColumn', 
             statementIndex, 
             columnIndex 
         });
-    };
+    }, [vscode]);
 
-    const handleEditColumnName = (statementIndex: number, columnIndex: number, newName: string): void => {
+    const handleEditColumnName = useCallback((statementIndex: number, columnIndex: number, newName: string): void => {
         vscode.postMessage({ 
             type: 'editColumnName', 
             statementIndex, 
             columnIndex, 
             newName 
         });
-    };
+    }, [vscode]);
 
     if (loading) {
         return (

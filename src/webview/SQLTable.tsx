@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 
 interface ParsedStatement {
     type: 'select' | 'insert' | 'update' | 'delete' | 'unknown';
@@ -20,7 +20,18 @@ interface SQLTableProps {
     onEditColumnName: (columnIndex: number, newName: string) => void;
 }
 
-export const SQLTable: React.FC<SQLTableProps> = ({ 
+// 値を表示用の文字列に変換するヘルパー関数
+const formatCellValue = (value: any): string => {
+    if (value === null || value === undefined) {
+        return 'NULL';
+    }
+    if (typeof value === 'boolean') {
+        return value ? 'true' : 'false';
+    }
+    return String(value);
+};
+
+export const SQLTable: React.FC<SQLTableProps> = React.memo(({ 
     statement, 
     onCellEdit, 
     onAddRow, 
@@ -34,68 +45,57 @@ export const SQLTable: React.FC<SQLTableProps> = ({
     const [editingColumn, setEditingColumn] = useState<number | null>(null);
     const [editColumnValue, setEditColumnValue] = useState<string>('');
 
-    // 値を表示用の文字列に変換するヘルパー関数
-    const formatCellValue = (value: any): string => {
-        if (value === null || value === undefined) {
-            return 'NULL';
-        }
-        if (typeof value === 'boolean') {
-            return value ? 'true' : 'false';
-        }
-        return String(value);
-    };
-
-    const handleCellClick = (rowIndex: number, colIndex: number, currentValue: any) => {
+    const handleCellClick = useCallback((rowIndex: number, colIndex: number, currentValue: any) => {
         setEditingCell({ row: rowIndex, col: colIndex });
         setEditValue(formatCellValue(currentValue));
-    };
+    }, []);
 
-    const handleCellSave = () => {
+    const handleCellSave = useCallback(() => {
         if (editingCell) {
             onCellEdit(editingCell.row, editingCell.col, editValue);
             setEditingCell(null);
             setEditValue('');
         }
-    };
+    }, [editingCell, editValue, onCellEdit]);
 
-    const handleCellCancel = () => {
+    const handleCellCancel = useCallback(() => {
         setEditingCell(null);
         setEditValue('');
-    };
+    }, []);
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
+    const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
             handleCellSave();
         } else if (e.key === 'Escape') {
             handleCellCancel();
         }
-    };
+    }, [handleCellSave, handleCellCancel]);
 
-    const handleColumnClick = (columnIndex: number, currentName: string) => {
+    const handleColumnClick = useCallback((columnIndex: number, currentName: string) => {
         setEditingColumn(columnIndex);
         setEditColumnValue(currentName);
-    };
+    }, []);
 
-    const handleColumnSave = () => {
+    const handleColumnSave = useCallback(() => {
         if (editingColumn !== null) {
             onEditColumnName(editingColumn, editColumnValue);
             setEditingColumn(null);
             setEditColumnValue('');
         }
-    };
+    }, [editingColumn, editColumnValue, onEditColumnName]);
 
-    const handleColumnCancel = () => {
+    const handleColumnCancel = useCallback(() => {
         setEditingColumn(null);
         setEditColumnValue('');
-    };
+    }, []);
 
-    const handleColumnKeyPress = (e: React.KeyboardEvent) => {
+    const handleColumnKeyPress = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
             handleColumnSave();
         } else if (e.key === 'Escape') {
             handleColumnCancel();
         }
-    };
+    }, [handleColumnSave, handleColumnCancel]);
 
     const renderTable = () => {
         switch (statement.type) {
@@ -333,4 +333,7 @@ export const SQLTable: React.FC<SQLTableProps> = ({
             {renderTable()}
         </div>
     );
-};
+});
+
+// displayNameを設定（React DevToolsでの表示用）
+SQLTable.displayName = 'SQLTable';

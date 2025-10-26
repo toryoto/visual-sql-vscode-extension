@@ -6,6 +6,7 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	private _view?: vscode.WebviewView;
 	private _sqlParser: SQLParser;
 	private _currentDocument?: vscode.TextDocument;
+	private _lastSQLContent: string = '';
 
 	constructor(private readonly _extensionUri: vscode.Uri) {
 		this._sqlParser = new SQLParser();
@@ -35,7 +36,6 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 						this._updateSQLFile(message.sql);
 						return;
 					case 'ready':
-						console.log('Webview ready message received');
 						if (this._currentDocument) {
 							this.updateWebview(this._currentDocument);
 						} else {
@@ -72,7 +72,6 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		// Webviewが表示されたときに現在のドキュメントを送信
 		webviewView.onDidChangeVisibility(() => {
 			if (webviewView.visible) {
-				console.log('Webview became visible');
 				const activeEditor = vscode.window.activeTextEditor;
 				if (activeEditor && activeEditor.document.languageId === 'sql') {
 					this.updateWebview(activeEditor.document);
@@ -86,9 +85,14 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		
 		if (this._view) {
 			const sqlContent = document.getText();
-			const parsedData = this._sqlParser.parseSQL(sqlContent);
 			
-			console.log('Sending data to webview:', parsedData);
+			// 前回と同じ内容なら再解析しない
+			if (sqlContent === this._lastSQLContent) {
+				return;
+			}
+			
+			this._lastSQLContent = sqlContent;
+			const parsedData = this._sqlParser.parseSQL(sqlContent);
 			
 			this._view.webview.postMessage({
 				type: 'updateData',
