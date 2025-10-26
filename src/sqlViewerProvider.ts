@@ -193,15 +193,15 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 					if (statement.tableName && statement.columns && statement.values) {
 						const columnsStr = statement.columns.join(', ');
 						const valuesStr = statement.values.map(row => 
-							`(${row.map(val => typeof val === 'string' ? `'${val}'` : val).join(', ')})`
-						).join(', ');  // ← カンマ+スペースのみ(改行なし)
+							`(${row.map(val => this._formatSQLValue(val)).join(', ')})`
+						).join(', ');
 						return `INSERT INTO ${statement.tableName} (${columnsStr}) VALUES ${valuesStr};`;
 					}
 					break;
 				case 'update':
 					if (statement.tableName && statement.data) {
 						const setClause = statement.data.map(([col, val]) => 
-							`${col} = ${typeof val === 'string' ? `'${val}'` : val}`
+							`${col} = ${this._formatSQLValue(val)}`
 						).join(', ');
 						return `UPDATE ${statement.tableName} SET ${setClause};`;
 					}
@@ -215,6 +215,47 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 			}
 			return '';
 		}).filter(sql => sql).join('\n');
+	}
+
+	private _formatSQLValue(val: any): string {
+		// NULL値の処理
+		if (val === null || val === undefined) {
+			return 'NULL';
+		}
+
+		// 文字列の場合、そのまま返す(既にクォートが含まれている場合)
+		const strVal = String(val).trim();
+
+		// 既にシングルクォートまたはダブルクォートで囲まれている場合
+		if ((strVal.startsWith("'") && strVal.endsWith("'")) || 
+		    (strVal.startsWith('"') && strVal.endsWith('"'))) {
+			// ダブルクォートの場合はシングルクォートに変換
+			if (strVal.startsWith('"') && strVal.endsWith('"')) {
+				const innerValue = strVal.slice(1, -1);
+				return `'${innerValue}'`;
+			}
+			return strVal;
+		}
+
+		// 'NULL'という文字列の場合
+		if (strVal.toLowerCase() === 'null') {
+			return 'NULL';
+		}
+
+		// boolean値の処理
+		if (strVal.toLowerCase() === 'true' || strVal.toLowerCase() === 'false') {
+			return strVal.toUpperCase();
+		}
+
+		// 数値の処理
+		if (!isNaN(Number(strVal)) && strVal !== '') {
+			return strVal;
+		}
+
+		// その他は文字列としてシングルクォートで囲む
+		// エスケープ処理: シングルクォートを2つにする
+		const escapedValue = strVal.replace(/'/g, "''");
+		return `'${escapedValue}'`;
 	}
 
 	private _handleAddColumn(statementIndex: number) {
@@ -232,7 +273,7 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		const statement = parsedData.statements[statementIndex];
 
 		if (statement.type === 'insert' && statement.columns) {
-			// 新しいカラム名を生成（column1, column2, ...）
+			// 新しいカラム名を生成(column1, column2, ...)
 			let newColumnName = 'column1';
 			let counter = 1;
 			while (statement.columns.includes(newColumnName)) {

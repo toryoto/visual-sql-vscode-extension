@@ -34,9 +34,20 @@ export const SQLTable: React.FC<SQLTableProps> = ({
     const [editingColumn, setEditingColumn] = useState<number | null>(null);
     const [editColumnValue, setEditColumnValue] = useState<string>('');
 
+    // 値を表示用の文字列に変換するヘルパー関数
+    const formatCellValue = (value: any): string => {
+        if (value === null || value === undefined) {
+            return 'NULL';
+        }
+        if (typeof value === 'boolean') {
+            return value ? 'true' : 'false';
+        }
+        return String(value);
+    };
+
     const handleCellClick = (rowIndex: number, colIndex: number, currentValue: any) => {
         setEditingCell({ row: rowIndex, col: colIndex });
-        setEditValue(String(currentValue || ''));
+        setEditValue(formatCellValue(currentValue));
     };
 
     const handleCellSave = () => {
@@ -176,7 +187,7 @@ export const SQLTable: React.FC<SQLTableProps> = ({
                                                 className="cell-input"
                                             />
                                         ) : (
-                                            cell
+                                            formatCellValue(cell)
                                         )}
                                     </td>
                                 ))}
@@ -246,7 +257,7 @@ export const SQLTable: React.FC<SQLTableProps> = ({
                                             className="cell-input"
                                         />
                                     ) : (
-                                        row[0]
+                                        formatCellValue(row[0])
                                     )}
                                 </td>
                                 <td 
@@ -264,7 +275,7 @@ export const SQLTable: React.FC<SQLTableProps> = ({
                                             className="cell-input"
                                         />
                                     ) : (
-                                        row[1]
+                                        formatCellValue(row[1])
                                     )}
                                 </td>
                                 <td style={{ textAlign: 'center' }}>

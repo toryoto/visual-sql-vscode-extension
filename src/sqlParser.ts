@@ -343,19 +343,24 @@ export class SQLParser {
 
     // 値を抽出するヘルパーメソッド
     private extractValue(val: any, row: any[]): void {
+        console.log('Extracting value:', val);
+        
         if (val === null || val === undefined) {
             row.push(null);
+        } else if (val.type === 'bool') {
+            const boolValue = val.value === true || val.value === 'true' || val.value === 'TRUE' || val.value === 1;
+            row.push(boolValue);
         } else if (val.value !== undefined) {
             row.push(val.value);
         } else if (val.type === 'single_quote_string' || val.type === 'double_quote_string') {
-            row.push(val.value);
+            row.push(val.value || '');
         } else if (val.type === 'number') {
-            row.push(val.value);
-        } else if (val.type === 'bool') {
             row.push(val.value);
         } else if (val.type === 'null') {
             row.push(null);
-        } else if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+        } else if (typeof val === 'string' || typeof val === 'number') {
+            row.push(val);
+        } else if (typeof val === 'boolean') {
             row.push(val);
         } else {
             console.warn('Unknown value type:', val);
@@ -516,6 +521,15 @@ export class SQLParser {
         if ((value.startsWith('\'') && value.endsWith('\'')) || 
             (value.startsWith('"') && value.endsWith('"'))) {
             return value.slice(1, -1);
+        }
+
+        // Boolean値の処理
+        const lowerValue = value.toLowerCase();
+        if (lowerValue === 'true') {
+            return true;
+        }
+        if (lowerValue === 'false') {
+            return false;
         }
 
         // 数値
