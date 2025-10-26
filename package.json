@@ -2,7 +2,7 @@
   "name": "visual-sql",
   "displayName": "Visual SQL",
   "description": "Visual SQL Viewer for VS Code",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "RyotoTaga",
   "repository": {
     "type": "git",
