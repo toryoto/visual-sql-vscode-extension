@@ -361,7 +361,7 @@ export class SQLParser {
         return rows;
     }
 
-    // 値の文字列を分割する（文字列内のカンマを考慮）
+    // 値の文字列を分割する(文字列内のカンマを考慮)
     private splitValueString(valueStr: string): any[] {
         const values: any[] = [];
         let currentValue = '';
@@ -405,13 +405,13 @@ export class SQLParser {
         return values;
     }
 
-    // 値をクリーンアップする（クォートの除去、型変換など）
+    // 値をクリーンアップする(クォートの除去、型変換など)
     private cleanValue(value: string): any {
         if (!value) {
             return '';
         }
 
-        // 文字列値（シングルクォートまたはダブルクォートで囲まれている）
+        // 文字列値(シングルクォートまたはダブルクォートで囲まれている)
         if ((value.startsWith('\'') && value.endsWith('\'')) || 
             (value.startsWith('"') && value.endsWith('"'))) {
             return value.slice(1, -1);
@@ -464,12 +464,18 @@ export class SQLParser {
             });
         }
 
+        // WHERE句を文字列化
+        let whereClause = '';
+        if (ast.where) {
+            whereClause = this.whereToString(ast.where);
+        }
+
         return {
             type: 'update',
             tableName,
             columns,
             data,
-            where: ast.where
+            where: whereClause
         };
     }
 
@@ -483,10 +489,72 @@ export class SQLParser {
             }
         }
 
+        // WHERE句を文字列化
+        let whereClause = '';
+        if (ast.where) {
+            whereClause = this.whereToString(ast.where);
+        }
+
         return {
             type: 'delete',
             tableName,
-            where: ast.where
+            where: whereClause,
+            data: [[]] // 空のデータ配列を追加(表示用)
         };
+    }
+
+    // WHERE句をSQL文字列に変換
+    private whereToString(where: any): string {
+        if (!where) {
+            return '';
+        }
+
+        try {
+            if (where.type === 'binary_expr') {
+                const left = this.expressionToString(where.left);
+                const operator = where.operator;
+                const right = this.expressionToString(where.right);
+                return `${left} ${operator} ${right}`;
+            } else if (where.type === 'column_ref') {
+                return where.column;
+            }
+            
+            return '';
+        } catch (error) {
+            return '';
+        }
+    }
+
+    // 式をSQL文字列に変換
+    private expressionToString(expr: any): string {
+        if (!expr) {
+            return '';
+        }
+
+        if (expr.type === 'column_ref') {
+            if (expr.table) {
+                return `${expr.table}.${expr.column}`;
+            }
+            return expr.column;
+        } else if (expr.type === 'single_quote_string' || expr.type === 'double_quote_string') {
+            return `'${expr.value}'`;
+        } else if (expr.type === 'number') {
+            return String(expr.value);
+        } else if (expr.type === 'bool') {
+            return expr.value ? 'TRUE' : 'FALSE';
+        } else if (expr.type === 'null') {
+            return 'NULL';
+        } else if (expr.type === 'binary_expr') {
+            const left = this.expressionToString(expr.left);
+            const operator = expr.operator;
+            const right = this.expressionToString(expr.right);
+            return `(${left} ${operator} ${right})`;
+        } else if (typeof expr === 'string') {
+            return expr;
+        } else if (typeof expr === 'number') {
+            return String(expr);
+        }
+
+        return '';
     }
 }

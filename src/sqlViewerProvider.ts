@@ -63,6 +63,9 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 					case 'editColumnName':
 						this._handleEditColumnName(message.statementIndex, message.columnIndex, message.newName);
 						return;
+					case 'editWhere':
+						this._handleEditWhere(message.statementIndex, message.whereClause);
+						return;
 				}
 			},
 			undefined,
@@ -186,6 +189,25 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		this._updateSQLFile(newSQL);
 	}
 
+	private _handleEditWhere(statementIndex: number, whereClause: string) {
+		if (!this._currentDocument) {
+			return;
+		}
+
+		const sqlContent = this._currentDocument.getText();
+		const parsedData = this._sqlParser.parseSQL(sqlContent);
+		
+		if (!parsedData.success || !parsedData.statements[statementIndex]) {
+			return;
+		}
+
+		const statement = parsedData.statements[statementIndex];
+		statement.where = whereClause.trim();
+
+		const newSQL = this._generateSQLFromData(parsedData);
+		this._updateSQLFile(newSQL);
+	}
+
 	private _generateSQLFromData(data: ParsedSQLData): string {
 		if (!data.success) {
 			return data.raw;
@@ -207,7 +229,14 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 						const setClause = statement.data.map(([col, val]) => 
 							`${col} = ${this._formatSQLValue(val)}`
 						).join(', ');
-						return `UPDATE ${statement.tableName} SET ${setClause};`;
+						const whereClause = statement.where ? ` WHERE ${statement.where}` : '';
+						return `UPDATE ${statement.tableName} SET ${setClause}${whereClause};`;
+					}
+					break;
+				case 'delete':
+					if (statement.tableName) {
+						const whereClause = statement.where ? ` WHERE ${statement.where}` : '';
+						return `DELETE FROM ${statement.tableName}${whereClause};`;
 					}
 					break;
 				case 'select':

@@ -95,6 +95,14 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
         });
     }, [vscode]);
 
+    const handleEditWhere = useCallback((statementIndex: number, whereClause: string): void => {
+        vscode.postMessage({ 
+            type: 'editWhere', 
+            statementIndex, 
+            whereClause 
+        });
+    }, [vscode]);
+
     if (loading) {
         return (
             <div className="loading">
@@ -160,6 +168,7 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
                                 onAddColumn={() => handleAddColumn(index)}
                                 onDeleteColumn={(columnIndex: number) => handleDeleteColumn(index, columnIndex)}
                                 onEditColumnName={(columnIndex: number, newName: string) => handleEditColumnName(index, columnIndex, newName)}
+                                onEditWhere={(whereClause: string) => handleEditWhere(index, whereClause)}
                             />
                         </div>
                     ))

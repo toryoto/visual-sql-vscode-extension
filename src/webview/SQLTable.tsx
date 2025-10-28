@@ -18,6 +18,7 @@ interface SQLTableProps {
     onAddColumn: () => void;
     onDeleteColumn: (columnIndex: number) => void;
     onEditColumnName: (columnIndex: number, newName: string) => void;
+    onEditWhere: (whereClause: string) => void;
 }
 
 // 値を表示用の文字列に変換するヘルパー関数
@@ -38,12 +39,15 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
     onDeleteRow,
     onAddColumn,
     onDeleteColumn,
-    onEditColumnName
+    onEditColumnName,
+    onEditWhere
 }) => {
     const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
     const [editValue, setEditValue] = useState<string>('');
     const [editingColumn, setEditingColumn] = useState<number | null>(null);
     const [editColumnValue, setEditColumnValue] = useState<string>('');
+    const [editingWhere, setEditingWhere] = useState<boolean>(false);
+    const [whereValue, setWhereValue] = useState<string>('');
 
     const handleCellClick = useCallback((rowIndex: number, colIndex: number, currentValue: any) => {
         setEditingCell({ row: rowIndex, col: colIndex });
@@ -97,6 +101,29 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
         }
     }, [handleColumnSave, handleColumnCancel]);
 
+    const handleWhereClick = useCallback(() => {
+        setEditingWhere(true);
+        setWhereValue(statement.where ? String(statement.where) : '');
+    }, [statement.where]);
+
+    const handleWhereSave = useCallback(() => {
+        onEditWhere(whereValue);
+        setEditingWhere(false);
+    }, [whereValue, onEditWhere]);
+
+    const handleWhereCancel = useCallback(() => {
+        setEditingWhere(false);
+        setWhereValue('');
+    }, []);
+
+    const handleWhereKeyPress = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleWhereSave();
+        } else if (e.key === 'Escape') {
+            handleWhereCancel();
+        }
+    }, [handleWhereSave, handleWhereCancel]);
+
     const renderTable = () => {
         switch (statement.type) {
             case 'insert':
@@ -105,6 +132,8 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
                 return renderUpdateTable();
             case 'select':
                 return renderSelectTable();
+            case 'delete':
+                return renderDeleteTable();
             default:
                 return <div>未対応のSQLタイプ: {statement.type}</div>;
         }
@@ -219,84 +248,90 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
         }
 
         return (
-            <div className="table-container">
-                <table className="sql-table">
-                    <thead>
-                        <tr>
-                            <th>カラム</th>
-                            <th>値</th>
-                            <th style={{ textAlign: 'center' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                                    <button 
-                                        onClick={onAddColumn}
-                                        className="add-row-btn"
-                                        title="カラムを追加"
-                                        style={{ fontSize: '12px' }}
-                                    >
-                                        + カラム
-                                    </button>
-                                </div>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {statement.data.map((row, rowIndex) => (
-                            <tr key={rowIndex}>
-                                <td 
-                                    className="editable-cell"
-                                    onClick={() => handleCellClick(rowIndex, 0, row[0])}
-                                >
-                                    {editingCell?.row === rowIndex && editingCell?.col === 0 ? (
-                                        <input
-                                            type="text"
-                                            value={editValue}
-                                            onChange={(e) => setEditValue(e.target.value)}
-                                            onBlur={handleCellSave}
-                                            onKeyDown={handleKeyPress}
-                                            autoFocus
-                                            className="cell-input"
-                                        />
-                                    ) : (
-                                        formatCellValue(row[0])
-                                    )}
-                                </td>
-                                <td 
-                                    className="editable-cell"
-                                    onClick={() => handleCellClick(rowIndex, 1, row[1])}
-                                >
-                                    {editingCell?.row === rowIndex && editingCell?.col === 1 ? (
-                                        <input
-                                            type="text"
-                                            value={editValue}
-                                            onChange={(e) => setEditValue(e.target.value)}
-                                            onBlur={handleCellSave}
-                                            onKeyDown={handleKeyPress}
-                                            autoFocus
-                                            className="cell-input"
-                                        />
-                                    ) : (
-                                        formatCellValue(row[1])
-                                    )}
-                                </td>
-                                <td style={{ textAlign: 'center' }}>
+            <>
+                <div className="info-text" style={{ marginBottom: '10px' }}>
+                    UPDATE文: テーブル <strong>{statement.tableName}</strong> のデータを更新します
+                </div>
+                <div className="table-container">
+                    <table className="sql-table">
+                        <thead>
+                            <tr>
+                                <th>カラム</th>
+                                <th>値</th>
+                                <th style={{ textAlign: 'center' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                         <button 
-                                            onClick={() => onDeleteRow(rowIndex)}
-                                            className="column-delete-btn"
-                                            title="行を削除"
+                                            onClick={onAddColumn}
+                                            className="add-row-btn"
+                                            title="カラムを追加"
+                                            style={{ fontSize: '12px' }}
                                         >
-                                            ×
+                                            + カラム
                                         </button>
                                     </div>
-                                </td>
+                                </th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-                <button onClick={onAddRow} className="add-row-btn">
-                    + 行を追加
-                </button>
-            </div>
+                        </thead>
+                        <tbody>
+                            {statement.data.map((row, rowIndex) => (
+                                <tr key={rowIndex}>
+                                    <td 
+                                        className="editable-cell"
+                                        onClick={() => handleCellClick(rowIndex, 0, row[0])}
+                                    >
+                                        {editingCell?.row === rowIndex && editingCell?.col === 0 ? (
+                                            <input
+                                                type="text"
+                                                value={editValue}
+                                                onChange={(e) => setEditValue(e.target.value)}
+                                                onBlur={handleCellSave}
+                                                onKeyDown={handleKeyPress}
+                                                autoFocus
+                                                className="cell-input"
+                                            />
+                                        ) : (
+                                            formatCellValue(row[0])
+                                        )}
+                                    </td>
+                                    <td 
+                                        className="editable-cell"
+                                        onClick={() => handleCellClick(rowIndex, 1, row[1])}
+                                    >
+                                        {editingCell?.row === rowIndex && editingCell?.col === 1 ? (
+                                            <input
+                                                type="text"
+                                                value={editValue}
+                                                onChange={(e) => setEditValue(e.target.value)}
+                                                onBlur={handleCellSave}
+                                                onKeyDown={handleKeyPress}
+                                                autoFocus
+                                                className="cell-input"
+                                            />
+                                        ) : (
+                                            formatCellValue(row[1])
+                                        )}
+                                    </td>
+                                    <td style={{ textAlign: 'center' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                            <button 
+                                                onClick={() => onDeleteRow(rowIndex)}
+                                                className="column-delete-btn"
+                                                title="行を削除"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <button onClick={onAddRow} className="add-row-btn">
+                        + 行を追加
+                    </button>
+                </div>
+                {renderWhereClause()}
+            </>
         );
     };
 
@@ -328,6 +363,56 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
         );
     };
 
+    const renderDeleteTable = () => {
+        return (
+            <>
+                <div className="info-text" style={{ marginBottom: '10px' }}>
+                    DELETE文: テーブル <strong>{statement.tableName}</strong> からデータを削除します
+                </div>
+                {renderWhereClause()}
+            </>
+        );
+    };
+
+    const renderWhereClause = () => {
+        return (
+            <div style={{ marginTop: '15px', padding: '10px', border: '1px solid var(--vscode-panel-border)', borderRadius: '4px' }}>
+                <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>WHERE句:</div>
+                {editingWhere ? (
+                    <input
+                        type="text"
+                        value={whereValue}
+                        onChange={(e) => setWhereValue(e.target.value)}
+                        onBlur={handleWhereSave}
+                        onKeyDown={handleWhereKeyPress}
+                        autoFocus
+                        className="cell-input"
+                        placeholder="例: id = 1 または age > 25"
+                        style={{ width: '100%', padding: '4px' }}
+                    />
+                ) : (
+                    <div 
+                        onClick={handleWhereClick}
+                        style={{ 
+                            cursor: 'pointer', 
+                            padding: '4px',
+                            minHeight: '24px',
+                            backgroundColor: 'var(--vscode-input-background)',
+                            border: '1px solid var(--vscode-input-border)',
+                            borderRadius: '2px'
+                        }}
+                        title="クリックしてWHERE句を編集"
+                    >
+                        {statement.where || '(クリックして条件を追加)'}
+                    </div>
+                )}
+                <div className="info-text" style={{ marginTop: '8px', fontSize: '12px' }}>
+                    例: id = 1, name = 'John', age &gt; 25, status = 'active' AND age &lt; 30
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="sql-table-wrapper">
             {renderTable()}
@@ -335,5 +420,5 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
     );
 });
 
-// displayNameを設定（React DevToolsでの表示用）
+// displayNameを設定(React DevToolsでの表示用)
 SQLTable.displayName = 'SQLTable';
