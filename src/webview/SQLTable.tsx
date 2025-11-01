@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 
 interface ParsedStatement {
     type: 'select' | 'insert' | 'update' | 'delete' | 'unknown';
@@ -19,6 +19,7 @@ interface SQLTableProps {
     onDeleteColumn: (columnIndex: number) => void;
     onEditColumnName: (columnIndex: number, newName: string) => void;
     onEditWhere: (whereClause: string) => void;
+    validationError?: string;
 }
 
 // 値を表示用の文字列に変換するヘルパー関数
@@ -40,7 +41,8 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
     onAddColumn,
     onDeleteColumn,
     onEditColumnName,
-    onEditWhere
+    onEditWhere,
+    validationError
 }) => {
     const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
     const [editValue, setEditValue] = useState<string>('');
@@ -50,6 +52,16 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
     const [whereValue, setWhereValue] = useState<string>('');
     const [whereError, setWhereError] = useState<string>('');
     const [showWhereError, setShowWhereError] = useState<boolean>(false);
+
+    // 外部からのバリデーションエラーを反映
+    useEffect(() => {
+        if (validationError) {
+            setWhereError(validationError);
+            setShowWhereError(true);
+        } else {
+            setShowWhereError(false);
+        }
+    }, [validationError]);
 
     const handleCellClick = useCallback((rowIndex: number, colIndex: number, currentValue: any) => {
         setEditingCell({ row: rowIndex, col: colIndex });
@@ -392,9 +404,34 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
     };
 
     const renderWhereClause = () => {
+        const hasError = showWhereError && whereError;
+        
         return (
-            <div style={{ marginTop: '15px', padding: '10px', border: '1px solid var(--vscode-panel-border)', borderRadius: '4px' }}>
-                <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>WHERE句:</div>
+            <div style={{ 
+                marginTop: '15px', 
+                padding: '10px', 
+                border: hasError ? '2px solid var(--vscode-inputValidation-errorBorder)' : '1px solid var(--vscode-panel-border)', 
+                borderRadius: '4px',
+                backgroundColor: hasError ? 'var(--vscode-inputValidation-errorBackground)' : 'transparent'
+            }}>
+                <div style={{ 
+                    marginBottom: '8px', 
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                }}>
+                    WHERE句:
+                    {hasError && (
+                        <span style={{ 
+                            color: 'var(--vscode-errorForeground)',
+                            fontSize: '12px',
+                            fontWeight: 'normal'
+                        }}>
+                            ⚠️ 構文エラー
+                        </span>
+                    )}
+                </div>
                 {editingWhere ? (
                     <>
                         <input
@@ -434,30 +471,41 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
                                 padding: '4px',
                                 minHeight: '24px',
                                 backgroundColor: 'var(--vscode-input-background)',
-                                border: '1px solid var(--vscode-input-border)',
+                                border: hasError ? '2px solid var(--vscode-inputValidation-errorBorder)' : '1px solid var(--vscode-input-border)',
                                 borderRadius: '2px'
                             }}
                             title="クリックしてWHERE句を編集"
                         >
                             {statement.where || '(クリックして条件を追加)'}
                         </div>
-                        {showWhereError && whereError && (
+                        {hasError && (
                             <div style={{ 
                                 color: 'var(--vscode-errorForeground)',
                                 backgroundColor: 'var(--vscode-inputValidation-errorBackground)',
-                                padding: '4px 8px',
-                                marginTop: '4px',
-                                borderRadius: '2px',
-                                fontSize: '12px'
+                                padding: '8px',
+                                marginTop: '8px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: '8px'
                             }}>
-                                ⚠️ {whereError}
+                                <div>
+                                    <div style={{ fontWeight: 'normal' }}>{whereError}</div>
+                                    <div style={{ marginTop: '8px', fontSize: '11px', fontStyle: 'italic', opacity: 0.8 }}>
+                                        クリックして修正してください。このWHERE句は実行できません。
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </>
                 )}
-                <div className="info-text" style={{ marginTop: '8px', fontSize: '12px' }}>
-                    例: id = 1, name = 'John', age &gt; 25, status = 'active' AND age &lt; 30
-                </div>
+                {!hasError && (
+                    <div className="info-text" style={{ marginTop: '8px', fontSize: '12px' }}>
+                        例: id = 1, name = 'John', age &gt; 25, status = 'active' AND age &lt; 30
+                    </div>
+                )}
             </div>
         );
     };

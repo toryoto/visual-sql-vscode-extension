@@ -26,6 +26,7 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
     const [data, setData] = useState<ParsedSQLData | null>(null);
     const [fileName, setFileName] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(true);
+    const [validationErrors, setValidationErrors] = useState<Map<number, string>>(new Map());
 
     useEffect(() => {
         // メッセージリスナー
@@ -36,9 +37,17 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
                 setFileName(message.fileName);
                 setLoading(false);
             } else if (message.type === 'whereValidationError') {
-                // WHERE句のバリデーションエラーを表示
-                // TODO
-                console.error('WHERE clause validation error:', message.error);
+                setValidationErrors(prev => {
+                    const newErrors = new Map(prev);
+                    newErrors.set(message.statementIndex, message.error);
+                    return newErrors;
+                });
+            } else if (message.type === 'whereValidationSuccess') {
+                setValidationErrors(prev => {
+                    const newErrors = new Map(prev);
+                    newErrors.delete(message.statementIndex);
+                    return newErrors;
+                });
             }
         };
 
@@ -173,6 +182,7 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
                                 onDeleteColumn={(columnIndex: number) => handleDeleteColumn(index, columnIndex)}
                                 onEditColumnName={(columnIndex: number, newName: string) => handleEditColumnName(index, columnIndex, newName)}
                                 onEditWhere={(whereClause: string) => handleEditWhere(index, whereClause)}
+                                validationError={validationErrors.get(index)}
                             />
                         </div>
                     ))
