@@ -503,6 +503,26 @@ export class SQLParser {
         };
     }
 
+    // WHERE句の構文をバリデーション
+    public validateWhereClause(tableName: string, whereClause: string): { valid: boolean; error?: string } {
+        if (!whereClause || whereClause.trim() === '') {
+            return { valid: true }; // 空のWHERE句は有効
+        }
+
+        try {
+            // ダミーのSELECT文を作成してWHERE句の構文をチェック
+            const dummySQL = `SELECT * FROM ${tableName} WHERE ${whereClause}`;
+            this.parser.astify(dummySQL);
+            return { valid: true };
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            return { 
+                valid: false, 
+                error: `WHERE句の構文エラー: ${errorMessage}` 
+            };
+        }
+    }
+
     // WHERE句をSQL文字列に変換
     private whereToString(where: any): string {
         if (!where) {

@@ -48,6 +48,8 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
     const [editColumnValue, setEditColumnValue] = useState<string>('');
     const [editingWhere, setEditingWhere] = useState<boolean>(false);
     const [whereValue, setWhereValue] = useState<string>('');
+    const [whereError, setWhereError] = useState<string>('');
+    const [showWhereError, setShowWhereError] = useState<boolean>(false);
 
     const handleCellClick = useCallback((rowIndex: number, colIndex: number, currentValue: any) => {
         setEditingCell({ row: rowIndex, col: colIndex });
@@ -104,9 +106,22 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
     const handleWhereClick = useCallback(() => {
         setEditingWhere(true);
         setWhereValue(statement.where ? String(statement.where) : '');
+        setWhereError('');
+        setShowWhereError(false);
     }, [statement.where]);
 
     const handleWhereSave = useCallback(() => {
+        // 空の場合はそのまま保存
+        if (!whereValue.trim()) {
+            onEditWhere(whereValue.trim());
+            setEditingWhere(false);
+            setWhereError('');
+            setShowWhereError(false);
+            return;
+        }
+
+        // バリデーション要求をVSCodeに送信
+        // 一時的に保存してバリデーション結果を待つ
         onEditWhere(whereValue);
         setEditingWhere(false);
     }, [whereValue, onEditWhere]);
@@ -114,6 +129,8 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
     const handleWhereCancel = useCallback(() => {
         setEditingWhere(false);
         setWhereValue('');
+        setWhereError('');
+        setShowWhereError(false);
     }, []);
 
     const handleWhereKeyPress = useCallback((e: React.KeyboardEvent) => {
@@ -379,32 +396,64 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
             <div style={{ marginTop: '15px', padding: '10px', border: '1px solid var(--vscode-panel-border)', borderRadius: '4px' }}>
                 <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>WHERE句:</div>
                 {editingWhere ? (
-                    <input
-                        type="text"
-                        value={whereValue}
-                        onChange={(e) => setWhereValue(e.target.value)}
-                        onBlur={handleWhereSave}
-                        onKeyDown={handleWhereKeyPress}
-                        autoFocus
-                        className="cell-input"
-                        placeholder="例: id = 1 または age > 25"
-                        style={{ width: '100%', padding: '4px' }}
-                    />
+                    <>
+                        <input
+                            type="text"
+                            value={whereValue}
+                            onChange={(e) => setWhereValue(e.target.value)}
+                            onBlur={handleWhereSave}
+                            onKeyDown={handleWhereKeyPress}
+                            autoFocus
+                            className="cell-input"
+                            placeholder="例: id = 1 または age > 25"
+                            style={{ 
+                                width: '100%', 
+                                padding: '4px',
+                                borderColor: whereError ? 'var(--vscode-inputValidation-errorBorder)' : undefined
+                            }}
+                        />
+                        {whereError && (
+                            <div style={{ 
+                                color: 'var(--vscode-errorForeground)',
+                                backgroundColor: 'var(--vscode-inputValidation-errorBackground)',
+                                padding: '4px 8px',
+                                marginTop: '4px',
+                                borderRadius: '2px',
+                                fontSize: '12px'
+                            }}>
+                                {whereError}
+                            </div>
+                        )}
+                    </>
                 ) : (
-                    <div 
-                        onClick={handleWhereClick}
-                        style={{ 
-                            cursor: 'pointer', 
-                            padding: '4px',
-                            minHeight: '24px',
-                            backgroundColor: 'var(--vscode-input-background)',
-                            border: '1px solid var(--vscode-input-border)',
-                            borderRadius: '2px'
-                        }}
-                        title="クリックしてWHERE句を編集"
-                    >
-                        {statement.where || '(クリックして条件を追加)'}
-                    </div>
+                    <>
+                        <div 
+                            onClick={handleWhereClick}
+                            style={{ 
+                                cursor: 'pointer', 
+                                padding: '4px',
+                                minHeight: '24px',
+                                backgroundColor: 'var(--vscode-input-background)',
+                                border: '1px solid var(--vscode-input-border)',
+                                borderRadius: '2px'
+                            }}
+                            title="クリックしてWHERE句を編集"
+                        >
+                            {statement.where || '(クリックして条件を追加)'}
+                        </div>
+                        {showWhereError && whereError && (
+                            <div style={{ 
+                                color: 'var(--vscode-errorForeground)',
+                                backgroundColor: 'var(--vscode-inputValidation-errorBackground)',
+                                padding: '4px 8px',
+                                marginTop: '4px',
+                                borderRadius: '2px',
+                                fontSize: '12px'
+                            }}>
+                                ⚠️ {whereError}
+                            </div>
+                        )}
+                    </>
                 )}
                 <div className="info-text" style={{ marginTop: '8px', fontSize: '12px' }}>
                     例: id = 1, name = 'John', age &gt; 25, status = 'active' AND age &lt; 30

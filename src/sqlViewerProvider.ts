@@ -202,6 +202,21 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		}
 
 		const statement = parsedData.statements[statementIndex];
+		
+		if (whereClause.trim()) {
+			const tableName = statement.tableName || 'table';
+			const validation = this._sqlParser.validateWhereClause(tableName, whereClause.trim());
+			
+			if (!validation.valid) {
+				// バリデーションエラーを通知
+				vscode.window.showErrorMessage(validation.error || 'WHERE句の構文が正しくありません');
+				
+				// エラーがあっても元のWHERE句を保持（変更しない）
+				return;
+			}
+		}
+		
+		// バリデーション成功時のみ更新
 		statement.where = whereClause.trim();
 
 		const newSQL = this._generateSQLFromData(parsedData);

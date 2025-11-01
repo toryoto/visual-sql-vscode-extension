@@ -35,6 +35,10 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
                 setData(message.data);
                 setFileName(message.fileName);
                 setLoading(false);
+            } else if (message.type === 'whereValidationError') {
+                // WHERE句のバリデーションエラーを表示
+                // TODO
+                console.error('WHERE clause validation error:', message.error);
             }
         };
 
