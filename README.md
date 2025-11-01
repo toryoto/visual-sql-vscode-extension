@@ -7,6 +7,7 @@ View and edit SQL files in a table format directly in VS Code.
 - View INSERT, UPDATE, and SELECT statements as tables
 - Edit cells directly by clicking them
 - Add or remove rows and columns
+- Edit WHERE clauses (add, edit, delete, and validate)
 - Auto-saves changes back to your SQL file
 
 ## Usage
@@ -18,7 +19,8 @@ View and edit SQL files in a table format directly in VS Code.
 ## Supported SQL
 
 - INSERT INTO - read/write
-- UPDATE - read/write
+- UPDATE - read/write (including WHERE clause)
+- DELETE - read/write (including WHERE clause)
 - SELECT - read-only
 
 ## Screenshot
@@ -34,6 +36,13 @@ View and edit SQL files in a table format directly in VS Code.
 Report bugs on GitHub
 
 ## Release Notes
+
+### 0.0.3
+
+- Added support for WHERE clause validation
+- Added support for WHERE clause addition
+- Added support for WHERE clause editing
+- Added support for WHERE clause deletion
 
 ### 0.0.2
 
