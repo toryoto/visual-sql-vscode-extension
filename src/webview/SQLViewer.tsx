@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SQLTable } from './SQLTable';
 
+type ColumnType = 'string' | 'number' | 'boolean' | 'null';
+
 interface ParsedSQLData {
     success: boolean;
     statements: ParsedStatement[];
@@ -12,6 +14,7 @@ interface ParsedStatement {
     type: 'select' | 'insert' | 'update' | 'delete' | 'unknown';
     tableName?: string;
     columns?: string[];
+    columnTypes?: ColumnType[];
     values?: any[][];
     where?: any;
     set?: any;
@@ -116,6 +119,15 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
         });
     }, [vscode]);
 
+    const handleChangeColumnType = useCallback((statementIndex: number, columnIndex: number, columnType: ColumnType): void => {
+        vscode.postMessage({ 
+            type: 'changeColumnType', 
+            statementIndex, 
+            columnIndex, 
+            columnType 
+        });
+    }, [vscode]);
+
     if (loading) {
         return (
             <div className="loading">
@@ -182,6 +194,7 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
                                 onDeleteColumn={(columnIndex: number) => handleDeleteColumn(index, columnIndex)}
                                 onEditColumnName={(columnIndex: number, newName: string) => handleEditColumnName(index, columnIndex, newName)}
                                 onEditWhere={(whereClause: string) => handleEditWhere(index, whereClause)}
+                                onChangeColumnType={(columnIndex: number, columnType: ColumnType) => handleChangeColumnType(index, columnIndex, columnType)}
                                 validationError={validationErrors.get(index)}
                             />
                         </div>

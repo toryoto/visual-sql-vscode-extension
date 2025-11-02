@@ -1,9 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
 
+type ColumnType = 'string' | 'number' | 'boolean' | 'null';
+
 interface ParsedStatement {
     type: 'select' | 'insert' | 'update' | 'delete' | 'unknown';
     tableName?: string;
     columns?: string[];
+    columnTypes?: ColumnType[];
     values?: any[][];
     where?: any;
     set?: any;
@@ -19,17 +22,33 @@ interface SQLTableProps {
     onDeleteColumn: (columnIndex: number) => void;
     onEditColumnName: (columnIndex: number, newName: string) => void;
     onEditWhere: (whereClause: string) => void;
+    onChangeColumnType: (columnIndex: number, columnType: ColumnType) => void;
     validationError?: string;
 }
 
+// 型のラベルマッピング
+const TYPE_LABELS: Record<ColumnType, string> = {
+    'string': '文字列',
+    'number': '数値',
+    'boolean': '真偽値',
+    'null': 'NULL'
+};
+
 // 値を表示用の文字列に変換するヘルパー関数
-const formatCellValue = (value: any): string => {
+const formatCellValue = (value: any, columnType?: ColumnType): string => {
+    // NULL型の場合
+    if (columnType === 'null') {
+        return 'NULL';
+    }
+    
     if (value === null || value === undefined) {
         return 'NULL';
     }
+    
     if (typeof value === 'boolean') {
         return value ? 'true' : 'false';
     }
+    
     return String(value);
 };
 
@@ -42,6 +61,7 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
     onDeleteColumn,
     onEditColumnName,
     onEditWhere,
+    onChangeColumnType,
     validationError
 }) => {
     const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
@@ -63,9 +83,9 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
         }
     }, [validationError]);
 
-    const handleCellClick = useCallback((rowIndex: number, colIndex: number, currentValue: any) => {
+    const handleCellClick = useCallback((rowIndex: number, colIndex: number, currentValue: any, columnType?: ColumnType) => {
         setEditingCell({ row: rowIndex, col: colIndex });
-        setEditValue(formatCellValue(currentValue));
+        setEditValue(formatCellValue(currentValue, columnType));
     }, []);
 
     const handleCellSave = useCallback(() => {
@@ -153,6 +173,10 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
         }
     }, [handleWhereSave, handleWhereCancel]);
 
+    const handleTypeChange = useCallback((columnIndex: number, newType: ColumnType) => {
+        onChangeColumnType(columnIndex, newType);
+    }, [onChangeColumnType]);
+
     const renderTable = () => {
         switch (statement.type) {
             case 'insert':
@@ -178,39 +202,57 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
                 <table className="sql-table">
                     <thead>
                         <tr>
-                            {statement.columns.map((col, index) => (
-                                <th key={index} className="editable-cell" style={{ position: 'relative' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        {editingColumn === index ? (
-                                            <input
-                                                type="text"
-                                                value={editColumnValue}
-                                                onChange={(e) => setEditColumnValue(e.target.value)}
-                                                onBlur={handleColumnSave}
-                                                onKeyDown={handleColumnKeyPress}
-                                                autoFocus
-                                                className="cell-input"
-                                                style={{ flex: 1 }}
-                                            />
-                                        ) : (
-                                            <div 
-                                                onClick={() => handleColumnClick(index, col)}
-                                                style={{ cursor: 'pointer', flex: 1 }}
-                                                title="クリックしてカラム名を編集"
-                                            >
-                                                {col}
+                            {statement.columns.map((col, index) => {
+                                const columnType = statement.columnTypes?.[index] || 'string';
+                                return (
+                                    <th key={index} className="editable-cell" style={{ position: 'relative' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                {editingColumn === index ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editColumnValue}
+                                                        onChange={(e) => setEditColumnValue(e.target.value)}
+                                                        onBlur={handleColumnSave}
+                                                        onKeyDown={handleColumnKeyPress}
+                                                        autoFocus
+                                                        className="cell-input"
+                                                        style={{ flex: 1 }}
+                                                    />
+                                                ) : (
+                                                    <div 
+                                                        onClick={() => handleColumnClick(index, col)}
+                                                        style={{ cursor: 'pointer', flex: 1 }}
+                                                        title="クリックしてカラム名を編集"
+                                                    >
+                                                        {col}
+                                                    </div>
+                                                )}
+                                                <button 
+                                                    onClick={() => onDeleteColumn(index)}
+                                                    className="column-delete-btn"
+                                                    title="カラムを削除"
+                                                >
+                                                    ×
+                                                </button>
                                             </div>
-                                        )}
-                                        <button 
-                                            onClick={() => onDeleteColumn(index)}
-                                            className="column-delete-btn"
-                                            title="カラムを削除"
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                </th>
-                            ))}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <select
+                                                    value={columnType}
+                                                    onChange={(e) => handleTypeChange(index, e.target.value as ColumnType)}
+                                                    className="type-selector"
+                                                    title="データ型を選択"
+                                                >
+                                                    <option value="string">{TYPE_LABELS['string']}</option>
+                                                    <option value="number">{TYPE_LABELS['number']}</option>
+                                                    <option value="boolean">{TYPE_LABELS['boolean']}</option>
+                                                    <option value="null">{TYPE_LABELS['null']}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </th>
+                                );
+                            })}
                             <th style={{ textAlign: 'center' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                     <button 
@@ -228,27 +270,30 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
                     <tbody>
                         {statement.values.map((row, rowIndex) => (
                             <tr key={rowIndex}>
-                                {row.map((cell, colIndex) => (
-                                    <td 
-                                        key={colIndex}
-                                        className="editable-cell"
-                                        onClick={() => handleCellClick(rowIndex, colIndex, cell)}
-                                    >
-                                        {editingCell?.row === rowIndex && editingCell?.col === colIndex ? (
-                                            <input
-                                                type="text"
-                                                value={editValue}
-                                                onChange={(e) => setEditValue(e.target.value)}
-                                                onBlur={handleCellSave}
-                                                onKeyDown={handleKeyPress}
-                                                autoFocus
-                                                className="cell-input"
-                                            />
-                                        ) : (
-                                            formatCellValue(cell)
-                                        )}
-                                    </td>
-                                ))}
+                                {row.map((cell, colIndex) => {
+                                    const columnType = statement.columnTypes?.[colIndex] || 'string';
+                                    return (
+                                        <td 
+                                            key={colIndex}
+                                            className="editable-cell"
+                                            onClick={() => handleCellClick(rowIndex, colIndex, cell, columnType)}
+                                        >
+                                            {editingCell?.row === rowIndex && editingCell?.col === colIndex ? (
+                                                <input
+                                                    type="text"
+                                                    value={editValue}
+                                                    onChange={(e) => setEditValue(e.target.value)}
+                                                    onBlur={handleCellSave}
+                                                    onKeyDown={handleKeyPress}
+                                                    autoFocus
+                                                    className="cell-input"
+                                                />
+                                            ) : (
+                                                formatCellValue(cell, columnType)
+                                            )}
+                                        </td>
+                                    );
+                                })}
                                 <td style={{ textAlign: 'center' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                         <button 

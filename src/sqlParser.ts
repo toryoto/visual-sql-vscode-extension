@@ -1,5 +1,12 @@
 import { Parser } from 'node-sql-parser';
 
+export type ColumnType = 'string' | 'number' | 'boolean' | 'null';
+
+export interface ColumnInfo {
+    name: string;
+    type: ColumnType;
+}
+
 export interface ParsedSQLData {
     success: boolean;
     statements: ParsedStatement[];
@@ -11,6 +18,7 @@ export interface ParsedStatement {
     type: 'select' | 'insert' | 'update' | 'delete' | 'unknown';
     tableName?: string;
     columns?: string[];
+    columnTypes?: ColumnType[];
     values?: any[][];
     where?: any;
     set?: any;
@@ -260,12 +268,57 @@ export class SQLParser {
         // データの整合性をチェックして修正
         const validatedValues = this.validateAndFixInsertData(columns, values);
 
+        // 値から型を推測
+        const columnTypes = this.inferColumnTypes(validatedValues, columns.length);
+
         return {
             type: 'insert',
             tableName,
             columns,
+            columnTypes,
             values: validatedValues
         };
+    }
+
+    // 値から型を推測するヘルパーメソッド
+    private inferColumnTypes(values: any[][], columnCount: number): ColumnType[] {
+        const columnTypes: ColumnType[] = new Array(columnCount).fill('string');
+        
+        // 各カラムの値を確認して型を推測
+        for (let colIndex = 0; colIndex < columnCount; colIndex++) {
+            const columnValues = values.map(row => row[colIndex]);
+            columnTypes[colIndex] = this.inferTypeFromValues(columnValues);
+        }
+        
+        return columnTypes;
+    }
+
+    // 値の配列から型を推測
+    private inferTypeFromValues(values: any[]): ColumnType {
+        // すべての値がnullの場合
+        if (values.every(v => v === null || v === undefined)) {
+            return 'null';
+        }
+        
+        // null以外の値を取得
+        const nonNullValues = values.filter(v => v !== null && v !== undefined);
+        
+        if (nonNullValues.length === 0) {
+            return 'string';  // デフォルト
+        }
+        
+        // すべてがboolean型
+        if (nonNullValues.every(v => typeof v === 'boolean')) {
+            return 'boolean';
+        }
+        
+        // すべてが数値型
+        if (nonNullValues.every(v => typeof v === 'number')) {
+            return 'number';
+        }
+        
+        // それ以外は文字列
+        return 'string';
     }
 
     // 値を抽出するヘルパーメソッド
@@ -332,11 +385,13 @@ export class SQLParser {
             const columns = columnsStr.split(',').map(col => col.trim().replace(/['"]/g, ''));
             const values = this.extractValuesFromString(valuesStr);
             const validatedValues = this.validateAndFixInsertData(columns, values);
+            const columnTypes = this.inferColumnTypes(validatedValues, columns.length);
 
             return {
                 type: 'insert',
                 tableName,
                 columns,
+                columnTypes,
                 values: validatedValues
             };
         } catch (error) {

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SQLParser, ParsedSQLData } from './sqlParser';
+import { SQLParser, ParsedSQLData, ColumnType } from './sqlParser';
 
 export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	public static readonly viewType = 'visual-sql-viewer';
@@ -65,6 +65,9 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 						return;
 					case 'editWhere':
 						this._handleEditWhere(message.statementIndex, message.whereClause);
+						return;
+					case 'changeColumnType':
+						this._handleChangeColumnType(message.statementIndex, message.columnIndex, message.columnType);
 						return;
 				}
 			},
@@ -241,6 +244,70 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		this._updateSQLFile(newSQL);
 	}
 
+	private _handleChangeColumnType(statementIndex: number, columnIndex: number, columnType: ColumnType) {
+		if (!this._currentDocument) {
+			return;
+		}
+
+		const sqlContent = this._currentDocument.getText();
+		const parsedData = this._sqlParser.parseSQL(sqlContent);
+		
+		if (!parsedData.success || !parsedData.statements[statementIndex]) {
+			return;
+		}
+
+		const statement = parsedData.statements[statementIndex];
+
+		if (statement.type === 'insert') {
+			// columnTypesが存在しない場合は初期化
+			if (!statement.columnTypes && statement.columns) {
+				statement.columnTypes = new Array(statement.columns.length).fill('string');
+			}
+			
+			if (statement.columnTypes && columnIndex < statement.columnTypes.length) {
+				// 型を変更
+				statement.columnTypes[columnIndex] = columnType;
+				
+				// 既存の値をデフォルト値に変換
+				if (statement.values) {
+					const defaultValue = this._getDefaultValueForType(columnType);
+					statement.values.forEach(row => {
+						if (row[columnIndex] !== undefined) {
+							row[columnIndex] = defaultValue;
+						}
+					});
+				}
+			}
+		}
+
+		const newSQL = this._generateSQLFromData(parsedData);
+		this._updateSQLFile(newSQL).then(() => {
+			// ファイル更新後、webviewを明示的に更新
+			if (this._currentDocument) {
+				// ドキュメント変更イベントが発火するまで少し待つ
+				setTimeout(() => {
+					this.updateWebview(this._currentDocument!);
+				}, 50);
+			}
+		});
+	}
+
+	// 型に対応するデフォルト値を取得
+	private _getDefaultValueForType(columnType: ColumnType): any {
+		switch (columnType) {
+			case 'string':
+				return '';
+			case 'number':
+				return 0;
+			case 'boolean':
+				return false;
+			case 'null':
+				return null;
+			default:
+				return '';
+		}
+	}
+
 	private _generateSQLFromData(data: ParsedSQLData): string {
 		if (!data.success) {
 			return data.raw;
@@ -252,15 +319,18 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 					if (statement.tableName && statement.columns && statement.values) {
 						const columnsStr = statement.columns.join(', ');
 						const valuesStr = statement.values.map(row => 
-							`(${row.map(val => this._formatSQLValue(val)).join(', ')})`
+							`(${row.map((val, colIndex) => 
+								this._formatSQLValue(val, statement.columnTypes?.[colIndex] || 'string')
+							).join(', ')})`
 						).join(', ');
-						return `INSERT INTO ${statement.tableName} (${columnsStr}) VALUES ${valuesStr};`;
+						
+							return `INSERT INTO ${statement.tableName} (${columnsStr}) VALUES ${valuesStr};`;
 					}
 					break;
 				case 'update':
 					if (statement.tableName && statement.data) {
 						const setClause = statement.data.map(([col, val]) => 
-							`${col} = ${this._formatSQLValue(val)}`
+							`${col} = ${this._formatSQLValue(val, 'string')}`
 						).join(', ');
 						const whereClause = statement.where ? ` WHERE ${statement.where}` : '';
 						return `UPDATE ${statement.tableName} SET ${setClause}${whereClause};`;
@@ -283,45 +353,56 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		}).filter(sql => sql).join('\n');
 	}
 
-	private _formatSQLValue(val: any): string {
-		// NULL値の処理
+	private _formatSQLValue(val: any, columnType: ColumnType): string {
+		if (columnType === 'null') {
+			return 'NULL';
+		}
+
 		if (val === null || val === undefined) {
 			return 'NULL';
 		}
 
-		// 文字列の場合、そのまま返す(既にクォートが含まれている場合)
 		const strVal = String(val).trim();
 
-		// 既にシングルクォートまたはダブルクォートで囲まれている場合
-		if ((strVal.startsWith("'") && strVal.endsWith("'")) || 
-		    (strVal.startsWith('"') && strVal.endsWith('"'))) {
-			// ダブルクォートの場合はシングルクォートに変換
-			if (strVal.startsWith('"') && strVal.endsWith('"')) {
-				const innerValue = strVal.slice(1, -1);
-				return `'${innerValue}'`;
+		if (strVal === '') {
+			if (columnType === 'string') {
+				return "''";
 			}
-			return strVal;
-		}
-
-		// 'NULL'という文字列の場合
-		if (strVal.toLowerCase() === 'null') {
 			return 'NULL';
 		}
 
-		// boolean値の処理
-		if (strVal.toLowerCase() === 'true' || strVal.toLowerCase() === 'false') {
-			return strVal.toUpperCase();
-		}
+		switch (columnType) {
+			case 'string':
+				// 文字列型: 必ずシングルクォートで囲む
+				// エスケープ処理: シングルクォートを2つにする
+				const escapedValue = strVal.replace(/'/g, "''");
+				return `'${escapedValue}'`;
 
-		// 数値の処理
-		if (!isNaN(Number(strVal)) && strVal !== '') {
-			return strVal;
-		}
+			case 'number':
+				// 数値型: クォートなし
+				// 数値に変換できない場合はNULL
+				const numValue = Number(strVal);
+				if (isNaN(numValue)) {
+					return 'NULL';
+				}
+				return String(numValue);
 
-		// その他は文字列としてシングルクォートで囲む
-		// エスケープ処理: シングルクォートを2つにする
-		const escapedValue = strVal.replace(/'/g, "''");
-		return `'${escapedValue}'`;
+			case 'boolean':
+				// boolean型: TRUE/FALSE
+				const lowerVal = strVal.toLowerCase();
+				if (lowerVal === 'true' || lowerVal === '1') {
+					return 'TRUE';
+				} else if (lowerVal === 'false' || lowerVal === '0') {
+					return 'FALSE';
+				}
+				// boolean型で true/false でない場合はエラーとしてNULL
+				return 'NULL';
+
+			default:
+				// デフォルトは文字列として扱う
+				const defaultEscaped = strVal.replace(/'/g, "''");
+				return `'${defaultEscaped}'`;
+		}
 	}
 
 	private _handleAddColumn(statementIndex: number) {
@@ -348,6 +429,12 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 			}
 			
 			statement.columns.push(newColumnName);
+			
+			// カラムの型を追加 (デフォルトは文字列)
+			if (!statement.columnTypes) {
+				statement.columnTypes = new Array(statement.columns.length - 1).fill('string');
+			}
+			statement.columnTypes.push('string');
 			
 			// 既存の行データに新しいカラム用の空の値を追加
 			if (statement.values) {
@@ -378,6 +465,11 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		if (statement.type === 'insert' && statement.columns && columnIndex < statement.columns.length) {
 			// カラムを削除
 			statement.columns.splice(columnIndex, 1);
+			
+			// カラムの型を削除
+			if (statement.columnTypes && columnIndex < statement.columnTypes.length) {
+				statement.columnTypes.splice(columnIndex, 1);
+			}
 			
 			// 既存の行データから対応するカラムを削除
 			if (statement.values) {
@@ -415,7 +507,7 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		this._updateSQLFile(newSQL);
 	}
 
-	private _updateSQLFile(sql: string) {
+	private _updateSQLFile(sql: string): Thenable<boolean> {
 		const activeEditor = vscode.window.activeTextEditor;
 		if (activeEditor && activeEditor.document.languageId === 'sql') {
 			const edit = new vscode.WorkspaceEdit();
@@ -424,8 +516,9 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 				activeEditor.document.positionAt(activeEditor.document.getText().length)
 			);
 			edit.replace(activeEditor.document.uri, fullRange, sql);
-			vscode.workspace.applyEdit(edit);
+			return vscode.workspace.applyEdit(edit);
 		}
+		return Promise.resolve(false);
 	}
 
 	private _getHtmlForWebview(webview: vscode.Webview) {
@@ -609,6 +702,19 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
         .column-actions {
             display: flex;
             gap: 2px;
+        }
+        .type-selector {
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 2px;
+            padding: 2px 4px;
+            font-size: 10px;
+            cursor: pointer;
+            margin-left: 4px;
+        }
+        .type-selector:hover {
+            background-color: var(--vscode-list-hoverBackground);
         }
     </style>
 </head>
