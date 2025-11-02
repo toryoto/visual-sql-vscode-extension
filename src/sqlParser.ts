@@ -276,14 +276,15 @@ export class SQLParser {
             // boolean型の処理
             const boolValue = val.value === true || val.value === 'true' || val.value === 'TRUE' || val.value === 1;
             row.push(boolValue);
-        } else if (val.value !== undefined) {
-            row.push(val.value);
+        } else if (val.type === 'number') {
+            // 数値型の処理（型チェックを先に行う）
+            row.push(Number(val.value));
         } else if (val.type === 'single_quote_string' || val.type === 'double_quote_string') {
             row.push(val.value || '');
-        } else if (val.type === 'number') {
-            row.push(val.value);
         } else if (val.type === 'null') {
             row.push(null);
+        } else if (val.value !== undefined) {
+            row.push(val.value);
         } else if (typeof val === 'string' || typeof val === 'number') {
             row.push(val);
         } else if (typeof val === 'boolean') {
