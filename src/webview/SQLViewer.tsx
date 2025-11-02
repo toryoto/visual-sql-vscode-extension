@@ -128,6 +128,12 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
         });
     }, [vscode]);
 
+    const handleReload = useCallback(() => {
+        vscode.postMessage({ 
+            type: 'reload' 
+        });
+    }, [vscode]);
+
     if (loading) {
         return (
             <div className="loading">
@@ -140,8 +146,15 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
         return (
             <div className="container">
                 <div className="header">
-                    <h3>Visual SQL</h3>
-                    <div>SQLファイルを開いてください</div>
+                    <div className="header-content">
+                        <div>
+                            <h3>Visual SQL</h3>
+                            <div>SQLファイルを開いてください</div>
+                        </div>
+                        <button onClick={handleReload} className="reload-btn" title="リロード">
+                            ⟳
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -151,8 +164,15 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
         return (
             <div className="container">
                 <div className="header">
-                    <h3>Visual SQL</h3>
-                    <div>ファイル: {fileName.split('/').pop()}</div>
+                    <div className="header-content">
+                        <div>
+                            <h3>Visual SQL</h3>
+                            <div>ファイル: {fileName.split('/').pop()}</div>
+                        </div>
+                        <button onClick={handleReload} className="reload-btn" title="リロード">
+                            ⟳
+                        </button>
+                    </div>
                 </div>
                 <div className="content">
                     <div className="error">
@@ -168,8 +188,15 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
     return (
         <div className="container">
             <div className="header">
-                <h3>Visual SQL</h3>
-                <div>ファイル: {fileName.split('/').pop()}</div>
+                <div className="header-content">
+                    <div>
+                        <h3>Visual SQL</h3>
+                        <div>ファイル: {fileName.split('/').pop()}</div>
+                    </div>
+                    <button onClick={handleReload} className="reload-btn" title="リロード">
+                        ⟳
+                    </button>
+                </div>
             </div>
             <div className="content">
                 {data.statements.length === 0 ? (

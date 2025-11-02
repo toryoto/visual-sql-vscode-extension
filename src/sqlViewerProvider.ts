@@ -42,8 +42,14 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 							const activeEditor = vscode.window.activeTextEditor;
 							if (activeEditor && activeEditor.document.languageId === 'sql') {
 								this.updateWebview(activeEditor.document);
+							} else {
+								// SQLファイルが開いていない場合は空データを送信してloading状態を解除
+								this._sendEmptyData();
 							}
 						}
+						return;
+					case 'reload':
+						this._handleReload();
 						return;
 					case 'cellEdit':
 						this._handleCellEdit(message.statementIndex, message.rowIndex, message.columnIndex, message.value);
@@ -105,6 +111,33 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 				data: parsedData,
 				fileName: document.fileName
 			});
+		}
+	}
+
+	private _sendEmptyData() {
+		if (this._view) {
+			const emptyData = this._sqlParser.parseSQL('');
+			this._view.webview.postMessage({
+				type: 'updateData',
+				data: emptyData,
+				fileName: ''
+			});
+		}
+	}
+
+	private _handleReload() {
+		const activeEditor = vscode.window.activeTextEditor;
+		if (activeEditor && activeEditor.document.languageId === 'sql') {
+			// キャッシュをクリアして強制的に再解析
+			this._lastSQLContent = '';
+			this.updateWebview(activeEditor.document);
+		} else if (this._currentDocument) {
+			// 現在のドキュメントがあればそれを使用
+			this._lastSQLContent = '';
+			this.updateWebview(this._currentDocument);
+		} else {
+			// ドキュメントがない場合は空データを送信
+			this._sendEmptyData();
 		}
 	}
 
@@ -555,6 +588,42 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
             background-color: var(--vscode-editor-background);
             border: 1px solid var(--vscode-panel-border);
             border-radius: 4px;
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-content div:first-child h3 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+        }
+        .header-content div:first-child div {
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .reload-btn {
+            background-color: transparent;
+            border: 1px solid var(--vscode-button-border);
+            color: var(--vscode-foreground);
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            transition: all 0.2s ease;
+            min-width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .reload-btn:hover {
+            background-color: var(--vscode-button-hoverBackground);
+            border-color: var(--vscode-button-hoverBorder);
+        }
+        .reload-btn:active {
+            transform: rotate(90deg);
         }
         .content {
             flex: 1;
