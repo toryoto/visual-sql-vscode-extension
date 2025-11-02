@@ -8,6 +8,8 @@ View and edit SQL files in a table format directly in VS Code.
 - Edit cells directly by clicking them
 - Add or remove rows and columns
 - Edit WHERE clauses (add, edit, delete, and validate)
+- Select data types for each column (String, Number, Boolean, Null)
+- Reload button to refresh the SQL file view
 - Auto-saves changes back to your SQL file
 
 ## Usage
@@ -36,6 +38,11 @@ View and edit SQL files in a table format directly in VS Code.
 Report bugs on GitHub
 
 ## Release Notes
+
+### 0.0.4
+
+- Added data type selection for each column (String, Number, Boolean, Null)
+- Added reload button to refresh the SQL file view
 
 ### 0.0.3
 
