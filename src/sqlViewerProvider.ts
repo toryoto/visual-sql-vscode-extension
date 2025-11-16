@@ -347,61 +347,10 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 			return data.raw;
 		}
 
-		// 新しいフォーマッターを使用して視認性の高いSQL文を生成
+		// SQLをフォーマットしてファイルに反映
 		return formatStatements(data.statements);
 	}
 
-	private _formatSQLValue(val: any, columnType: ColumnType): string {
-		if (columnType === 'null') {
-			return 'NULL';
-		}
-
-		if (val === null || val === undefined) {
-			return 'NULL';
-		}
-
-		const strVal = String(val).trim();
-
-		if (strVal === '') {
-			if (columnType === 'string') {
-				return "''";
-			}
-			return 'NULL';
-		}
-
-		switch (columnType) {
-			case 'string':
-				// 文字列型: 必ずシングルクォートで囲む
-				// エスケープ処理: シングルクォートを2つにする
-				const escapedValue = strVal.replace(/'/g, "''");
-				return `'${escapedValue}'`;
-
-			case 'number':
-				// 数値型: クォートなし
-				// 数値に変換できない場合はNULL
-				const numValue = Number(strVal);
-				if (isNaN(numValue)) {
-					return 'NULL';
-				}
-				return String(numValue);
-
-			case 'boolean':
-				// boolean型: TRUE/FALSE
-				const lowerVal = strVal.toLowerCase();
-				if (lowerVal === 'true' || lowerVal === '1') {
-					return 'TRUE';
-				} else if (lowerVal === 'false' || lowerVal === '0') {
-					return 'FALSE';
-				}
-				// boolean型で true/false でない場合はエラーとしてNULL
-				return 'NULL';
-
-			default:
-				// デフォルトは文字列として扱う
-				const defaultEscaped = strVal.replace(/'/g, "''");
-				return `'${defaultEscaped}'`;
-		}
-	}
 
 	private _handleAddColumn(statementIndex: number) {
 		if (!this._currentDocument) {
