@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { SQLParser, ParsedSQLData, ColumnType } from './sqlParser';
+import { formatStatements } from './sqlFormatter';
 
 export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	public static readonly viewType = 'visual-sql-viewer';
@@ -345,98 +346,11 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 		if (!data.success) {
 			return data.raw;
 		}
-	
-		return data.statements.map(statement => {
-			switch (statement.type) {
-				case 'insert':
-					if (statement.tableName && statement.columns && statement.values) {
-						const columnsStr = statement.columns.join(', ');
-						const valuesStr = statement.values.map(row => 
-							`(${row.map((val, colIndex) => 
-								this._formatSQLValue(val, statement.columnTypes?.[colIndex] || 'string')
-							).join(', ')})`
-						).join(', ');
-						
-							return `INSERT INTO ${statement.tableName} (${columnsStr}) VALUES ${valuesStr};`;
-					}
-					break;
-				case 'update':
-					if (statement.tableName && statement.data) {
-						const setClause = statement.data.map(([col, val]) => 
-							`${col} = ${this._formatSQLValue(val, 'string')}`
-						).join(', ');
-						const whereClause = statement.where ? ` WHERE ${statement.where}` : '';
-						return `UPDATE ${statement.tableName} SET ${setClause}${whereClause};`;
-					}
-					break;
-				case 'delete':
-					if (statement.tableName) {
-						const whereClause = statement.where ? ` WHERE ${statement.where}` : '';
-						return `DELETE FROM ${statement.tableName}${whereClause};`;
-					}
-					break;
-				case 'select':
-					if (statement.tableName && statement.columns) {
-						const columnsStr = statement.columns.join(', ');
-						return `SELECT ${columnsStr} FROM ${statement.tableName};`;
-					}
-					break;
-			}
-			return '';
-		}).filter(sql => sql).join('\n');
+
+		// SQLをフォーマットしてファイルに反映
+		return formatStatements(data.statements);
 	}
 
-	private _formatSQLValue(val: any, columnType: ColumnType): string {
-		if (columnType === 'null') {
-			return 'NULL';
-		}
-
-		if (val === null || val === undefined) {
-			return 'NULL';
-		}
-
-		const strVal = String(val).trim();
-
-		if (strVal === '') {
-			if (columnType === 'string') {
-				return "''";
-			}
-			return 'NULL';
-		}
-
-		switch (columnType) {
-			case 'string':
-				// 文字列型: 必ずシングルクォートで囲む
-				// エスケープ処理: シングルクォートを2つにする
-				const escapedValue = strVal.replace(/'/g, "''");
-				return `'${escapedValue}'`;
-
-			case 'number':
-				// 数値型: クォートなし
-				// 数値に変換できない場合はNULL
-				const numValue = Number(strVal);
-				if (isNaN(numValue)) {
-					return 'NULL';
-				}
-				return String(numValue);
-
-			case 'boolean':
-				// boolean型: TRUE/FALSE
-				const lowerVal = strVal.toLowerCase();
-				if (lowerVal === 'true' || lowerVal === '1') {
-					return 'TRUE';
-				} else if (lowerVal === 'false' || lowerVal === '0') {
-					return 'FALSE';
-				}
-				// boolean型で true/false でない場合はエラーとしてNULL
-				return 'NULL';
-
-			default:
-				// デフォルトは文字列として扱う
-				const defaultEscaped = strVal.replace(/'/g, "''");
-				return `'${defaultEscaped}'`;
-		}
-	}
 
 	private _handleAddColumn(statementIndex: number) {
 		if (!this._currentDocument) {
