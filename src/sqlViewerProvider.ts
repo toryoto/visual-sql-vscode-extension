@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { SQLParser, ParsedSQLData, ColumnType } from './sqlParser';
 import { formatStatements } from './sqlFormatter';
+import { QueryExecutor } from './database/QueryExecutor';
 
 export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	public static readonly viewType = 'visual-sql-viewer';
@@ -8,9 +9,17 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 	private _sqlParser: SQLParser;
 	private _currentDocument?: vscode.TextDocument;
 	private _lastSQLContent: string = '';
+	private _context: vscode.ExtensionContext;
+	private _queryExecutor: QueryExecutor;
 
-	constructor(private readonly _extensionUri: vscode.Uri) {
+	constructor(
+		private readonly _extensionUri: vscode.Uri,
+		context: vscode.ExtensionContext,
+		queryExecutor: QueryExecutor
+	) {
 		this._sqlParser = new SQLParser();
+		this._context = context;
+		this._queryExecutor = queryExecutor;
 	}
 
 	public resolveWebviewView(
@@ -75,6 +84,9 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 						return;
 					case 'changeColumnType':
 						this._handleChangeColumnType(message.statementIndex, message.columnIndex, message.columnType);
+						return;
+					case 'executeQuery':
+						this._handleExecuteQuery(message.statementIndex, message.sql);
 						return;
 				}
 			},
@@ -285,7 +297,7 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 
 		const sqlContent = this._currentDocument.getText();
 		const parsedData = this._sqlParser.parseSQL(sqlContent);
-		
+
 		if (!parsedData.success || !parsedData.statements[statementIndex]) {
 			return;
 		}
@@ -297,11 +309,11 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 			if (!statement.columnTypes && statement.columns) {
 				statement.columnTypes = new Array(statement.columns.length).fill('string');
 			}
-			
+
 			if (statement.columnTypes && columnIndex < statement.columnTypes.length) {
 				// 型を変更
 				statement.columnTypes[columnIndex] = columnType;
-				
+
 				// 既存の値をデフォルト値に変換
 				if (statement.values) {
 					const defaultValue = this._getDefaultValueForType(columnType);
@@ -324,6 +336,47 @@ export class SQLViewerProvider implements vscode.WebviewViewProvider {
 				}, 50);
 			}
 		});
+	}
+
+	private async _handleExecuteQuery(statementIndex: number, sql: string) {
+		if (!this._view) {
+			return;
+		}
+
+		try {
+			// クエリ実行開始を通知
+			this._view.webview.postMessage({
+				type: 'queryExecutionStart',
+				statementIndex: statementIndex
+			});
+
+			// クエリを実行
+			const result = await this._queryExecutor.executeQuery(sql, this._context);
+
+			// 実行結果を送信
+			this._view.webview.postMessage({
+				type: 'queryExecutionSuccess',
+				statementIndex: statementIndex,
+				result: result
+			});
+
+			vscode.window.showInformationMessage(
+				`Query executed successfully! ${result.rowCount} rows returned in ${result.executionTimeMs}ms`
+			);
+		} catch (error: any) {
+			// エラーを送信
+			this._view.webview.postMessage({
+				type: 'queryExecutionError',
+				statementIndex: statementIndex,
+				error: {
+					message: error.message || 'Query execution failed',
+					code: error.code,
+					detail: error.detail
+				}
+			});
+
+			vscode.window.showErrorMessage(`Query execution failed: ${error.message}`);
+		}
 	}
 
 	// 型に対応するデフォルト値を取得

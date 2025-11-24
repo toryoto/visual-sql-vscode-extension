@@ -25,11 +25,29 @@ interface SQLViewerProps {
     vscode: any;
 }
 
+interface QueryResult {
+    columns: string[];
+    rows: any[][];
+    rowCount: number;
+    executionTimeMs: number;
+}
+
+interface QueryState {
+    executing: boolean;
+    result?: QueryResult;
+    error?: {
+        message: string;
+        code?: string;
+        detail?: string;
+    };
+}
+
 export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
     const [data, setData] = useState<ParsedSQLData | null>(null);
     const [fileName, setFileName] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(true);
     const [validationErrors, setValidationErrors] = useState<Map<number, string>>(new Map());
+    const [queryStates, setQueryStates] = useState<Map<number, QueryState>>(new Map());
 
     useEffect(() => {
         // メッセージリスナー
@@ -50,6 +68,30 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
                     const newErrors = new Map(prev);
                     newErrors.delete(message.statementIndex);
                     return newErrors;
+                });
+            } else if (message.type === 'queryExecutionStart') {
+                setQueryStates(prev => {
+                    const newStates = new Map(prev);
+                    newStates.set(message.statementIndex, { executing: true });
+                    return newStates;
+                });
+            } else if (message.type === 'queryExecutionSuccess') {
+                setQueryStates(prev => {
+                    const newStates = new Map(prev);
+                    newStates.set(message.statementIndex, {
+                        executing: false,
+                        result: message.result
+                    });
+                    return newStates;
+                });
+            } else if (message.type === 'queryExecutionError') {
+                setQueryStates(prev => {
+                    const newStates = new Map(prev);
+                    newStates.set(message.statementIndex, {
+                        executing: false,
+                        error: message.error
+                    });
+                    return newStates;
                 });
             }
         };
@@ -129,8 +171,16 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
     }, [vscode]);
 
     const handleReload = useCallback(() => {
-        vscode.postMessage({ 
-            type: 'reload' 
+        vscode.postMessage({
+            type: 'reload'
+        });
+    }, [vscode]);
+
+    const handleExecuteQuery = useCallback((statementIndex: number, sql: string): void => {
+        vscode.postMessage({
+            type: 'executeQuery',
+            statementIndex,
+            sql
         });
     }, [vscode]);
 
@@ -204,28 +254,36 @@ export const SQLViewer: React.FC<SQLViewerProps> = ({ vscode }) => {
                         SQLが見つかりませんでした
                     </div>
                 ) : (
-                    data.statements.map((statement, index) => (
-                        <div key={index} className="statement-container">
-                            <h4>
-                                {statement.type.toUpperCase()}
-                                {statement.tableName && ` - ${statement.tableName}`}
-                            </h4>
-                            <SQLTable
-                                statement={statement}
-                                onCellEdit={(rowIndex: number, columnIndex: number, value: any) => 
-                                    handleCellEdit(index, rowIndex, columnIndex, value)
-                                }
-                                onAddRow={() => handleAddRow(index)}
-                                onDeleteRow={(rowIndex: number) => handleDeleteRow(index, rowIndex)}
-                                onAddColumn={() => handleAddColumn(index)}
-                                onDeleteColumn={(columnIndex: number) => handleDeleteColumn(index, columnIndex)}
-                                onEditColumnName={(columnIndex: number, newName: string) => handleEditColumnName(index, columnIndex, newName)}
-                                onEditWhere={(whereClause: string) => handleEditWhere(index, whereClause)}
-                                onChangeColumnType={(columnIndex: number, columnType: ColumnType) => handleChangeColumnType(index, columnIndex, columnType)}
-                                validationError={validationErrors.get(index)}
-                            />
-                        </div>
-                    ))
+                    data.statements.map((statement, index) => {
+                        // 現在のステートメントのSQLを取得（生のSQLから抽出）
+                        const statementSQL = data.raw.split(';')[index]?.trim() || '';
+
+                        return (
+                            <div key={index} className="statement-container">
+                                <h4>
+                                    {statement.type.toUpperCase()}
+                                    {statement.tableName && ` - ${statement.tableName}`}
+                                </h4>
+                                <SQLTable
+                                    statement={statement}
+                                    statementSQL={statementSQL}
+                                    onCellEdit={(rowIndex: number, columnIndex: number, value: any) =>
+                                        handleCellEdit(index, rowIndex, columnIndex, value)
+                                    }
+                                    onAddRow={() => handleAddRow(index)}
+                                    onDeleteRow={(rowIndex: number) => handleDeleteRow(index, rowIndex)}
+                                    onAddColumn={() => handleAddColumn(index)}
+                                    onDeleteColumn={(columnIndex: number) => handleDeleteColumn(index, columnIndex)}
+                                    onEditColumnName={(columnIndex: number, newName: string) => handleEditColumnName(index, columnIndex, newName)}
+                                    onEditWhere={(whereClause: string) => handleEditWhere(index, whereClause)}
+                                    onChangeColumnType={(columnIndex: number, columnType: ColumnType) => handleChangeColumnType(index, columnIndex, columnType)}
+                                    onExecuteQuery={(sql: string) => handleExecuteQuery(index, sql)}
+                                    validationError={validationErrors.get(index)}
+                                    queryState={queryStates.get(index)}
+                                />
+                            </div>
+                        );
+                    })
                 )}
             </div>
         </div>

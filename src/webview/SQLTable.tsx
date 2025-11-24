@@ -13,8 +13,26 @@ interface ParsedStatement {
     data?: any[][];
 }
 
+interface QueryResult {
+    columns: string[];
+    rows: any[][];
+    rowCount: number;
+    executionTimeMs: number;
+}
+
+interface QueryState {
+    executing: boolean;
+    result?: QueryResult;
+    error?: {
+        message: string;
+        code?: string;
+        detail?: string;
+    };
+}
+
 interface SQLTableProps {
     statement: ParsedStatement;
+    statementSQL: string;
     onCellEdit: (rowIndex: number, columnIndex: number, value: any) => void;
     onAddRow: () => void;
     onDeleteRow: (rowIndex: number) => void;
@@ -23,7 +41,9 @@ interface SQLTableProps {
     onEditColumnName: (columnIndex: number, newName: string) => void;
     onEditWhere: (whereClause: string) => void;
     onChangeColumnType: (columnIndex: number, columnType: ColumnType) => void;
+    onExecuteQuery: (sql: string) => void;
     validationError?: string;
+    queryState?: QueryState;
 }
 
 // 型のラベルマッピング
@@ -52,17 +72,20 @@ const formatCellValue = (value: any, columnType?: ColumnType): string => {
     return String(value);
 };
 
-export const SQLTable: React.FC<SQLTableProps> = React.memo(({ 
-    statement, 
-    onCellEdit, 
-    onAddRow, 
+export const SQLTable: React.FC<SQLTableProps> = React.memo(({
+    statement,
+    statementSQL,
+    onCellEdit,
+    onAddRow,
     onDeleteRow,
     onAddColumn,
     onDeleteColumn,
     onEditColumnName,
     onEditWhere,
     onChangeColumnType,
-    validationError
+    onExecuteQuery,
+    validationError,
+    queryState
 }) => {
     const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
     const [editValue, setEditValue] = useState<string>('');
@@ -555,9 +578,126 @@ export const SQLTable: React.FC<SQLTableProps> = React.memo(({
         );
     };
 
+    // クエリ結果を表示するコンポーネント
+    const renderQueryResult = () => {
+        if (!queryState) {
+            return null;
+        }
+
+        if (queryState.executing) {
+            return (
+                <div style={{
+                    marginTop: '16px',
+                    padding: '12px',
+                    backgroundColor: 'var(--vscode-editor-background)',
+                    border: '1px solid var(--vscode-panel-border)',
+                    borderRadius: '4px',
+                    textAlign: 'center'
+                }}>
+                    実行中...
+                </div>
+            );
+        }
+
+        if (queryState.error) {
+            return (
+                <div style={{
+                    marginTop: '16px',
+                    padding: '12px',
+                    backgroundColor: 'var(--vscode-inputValidation-errorBackground)',
+                    border: '1px solid var(--vscode-errorForeground)',
+                    borderRadius: '4px',
+                    color: 'var(--vscode-errorForeground)'
+                }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>エラー</div>
+                    <div>{queryState.error.message}</div>
+                    {queryState.error.detail && (
+                        <div style={{ marginTop: '4px', fontSize: '12px' }}>
+                            {queryState.error.detail}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        if (queryState.result) {
+            const { columns, rows, rowCount, executionTimeMs } = queryState.result;
+
+            return (
+                <div style={{
+                    marginTop: '16px',
+                    padding: '12px',
+                    backgroundColor: 'var(--vscode-editor-background)',
+                    border: '1px solid var(--vscode-panel-border)',
+                    borderRadius: '4px'
+                }}>
+                    <div style={{
+                        marginBottom: '8px',
+                        fontSize: '12px',
+                        color: 'var(--vscode-descriptionForeground)'
+                    }}>
+                        {rowCount} 行取得 ({executionTimeMs}ms)
+                    </div>
+                    {columns.length > 0 ? (
+                        <div className="table-container">
+                            <table className="sql-table">
+                                <thead>
+                                    <tr>
+                                        {columns.map((col, index) => (
+                                            <th key={index}>{col}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rows.map((row, rowIndex) => (
+                                        <tr key={rowIndex}>
+                                            {row.map((cell, cellIndex) => (
+                                                <td key={cellIndex}>
+                                                    {cell === null ? 'NULL' : String(cell)}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div style={{ fontStyle: 'italic', color: 'var(--vscode-descriptionForeground)' }}>
+                            結果なし
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        return null;
+    };
+
     return (
         <div className="sql-table-wrapper">
             {renderTable()}
+            {statementSQL && (
+                <div style={{ marginTop: '12px' }}>
+                    <button
+                        onClick={() => onExecuteQuery(statementSQL)}
+                        disabled={queryState?.executing}
+                        style={{
+                            backgroundColor: 'var(--vscode-button-background)',
+                            color: 'var(--vscode-button-foreground)',
+                            border: 'none',
+                            padding: '6px 12px',
+                            borderRadius: '3px',
+                            cursor: queryState?.executing ? 'not-allowed' : 'pointer',
+                            fontSize: '13px',
+                            fontWeight: 'bold',
+                            opacity: queryState?.executing ? 0.5 : 1
+                        }}
+                    >
+                        {queryState?.executing ? '実行中...' : '▶ Execute'}
+                    </button>
+                </div>
+            )}
+            {renderQueryResult()}
         </div>
     );
 });
