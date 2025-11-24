@@ -40,8 +40,82 @@
       {
         "command": "visual-sql.helloWorld",
         "title": "Hello World"
+      },
+      {
+        "command": "visual-sql.configureDatabase",
+        "title": "Visual SQL: Configure Database Connection"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Visual SQL",
+      "properties": {
+        "visualSql.databaseType": {
+          "type": "string",
+          "enum": [
+            "spanner",
+            "mysql",
+            "postgresql"
+          ],
+          "default": "postgresql",
+          "description": "Database type to connect to"
+        },
+        "visualSql.spanner.projectId": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud Project ID for Spanner"
+        },
+        "visualSql.spanner.instanceId": {
+          "type": "string",
+          "default": "",
+          "description": "Spanner Instance ID"
+        },
+        "visualSql.spanner.databaseId": {
+          "type": "string",
+          "default": "",
+          "description": "Spanner Database ID"
+        },
+        "visualSql.mysql.host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "MySQL host address"
+        },
+        "visualSql.mysql.port": {
+          "type": "number",
+          "default": 3306,
+          "description": "MySQL port"
+        },
+        "visualSql.mysql.database": {
+          "type": "string",
+          "default": "",
+          "description": "MySQL database name"
+        },
+        "visualSql.mysql.user": {
+          "type": "string",
+          "default": "",
+          "description": "MySQL username"
+        },
+        "visualSql.postgresql.host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host address"
+        },
+        "visualSql.postgresql.port": {
+          "type": "number",
+          "default": 5432,
+          "description": "PostgreSQL port"
+        },
+        "visualSql.postgresql.database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name"
+        },
+        "visualSql.postgresql.user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -78,6 +152,9 @@
   "dependencies": {
     "node-sql-parser": "5.3.12",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "@google-cloud/spanner": "^7.15.0",
+    "mysql2": "^3.11.5",
+    "pg": "^8.13.1"
   }
 }
